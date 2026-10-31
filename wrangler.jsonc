@@ -16,6 +16,14 @@
       "head_sampling_rate": 1
     }
   },
+  // Image replies are immutable and randomly keyed, so Cloudflare can serve
+  // them from the edge without running the Worker. Sharing entries across
+  // versions keeps the cache warm through deploys; purge the cache if image
+  // response headers ever change.
+  "cache": {
+    "enabled": true,
+    "cross_version_cache": true
+  },
   "assets": {
     "directory": "./public",
     // "/" is rendered by the Worker (theme-aware), everything else is static.
@@ -25,6 +33,18 @@
     {
       "binding": "IMAGES",
       "bucket_name": "catbox-images"
+    }
+  ],
+  // Approximate per-location limit for anonymous uploads. Add a WAF
+  // rate-limiting rule at the edge if the service is abused.
+  "ratelimits": [
+    {
+      "name": "UPLOAD_RATE_LIMITER",
+      "namespace_id": "1001",
+      "simple": {
+        "limit": 30,
+        "period": 60
+      }
     }
   ]
 }

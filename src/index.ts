@@ -55,6 +55,91 @@ function readThemeCookie(cookieHeader: string | undefined): string | null {
   return null;
 }
 
+/**
+ * Maximum size of the multipart envelope: the 10 MiB file plus room for
+ * boundaries and part headers. Enforced while the body is read so an
+ * oversized request is rejected without first buffering it in the isolate.
+ */
+const MAX_MULTIPART_BYTES = MAX_UPLOAD_BYTES + 256 * 1024;
+
+const TOO_LARGE_ERROR = `File too large. Maximum size is ${MAX_UPLOAD_LABEL}.`;
+
+type UploadParseResult =
+  | { ok: true; file: File }
+  | { ok: false; status: 400 | 413 | 415; error: string };
+
+/**
+ * Parse the upload form with a hard byte cap.
+ *
+ * `request.formData()` reads the whole body before the caller can inspect
+ * `file.size`, so a large request would be buffered first and only rejected
+ * afterwards. The body is piped through a counting stream instead, keeping
+ * the memory cost close to the 10 MiB limit even for chunked requests that
+ * omit `Content-Length`.
+ */
+async function parseUpload(request: Request): Promise<UploadParseResult> {
+  const contentType = request.headers.get('content-type') ?? '';
+  if (!contentType.toLowerCase().startsWith('multipart/form-data')) {
+    return { ok: false, status: 415, error: 'Expected a multipart/form-data upload.' };
+  }
+
+  // Let honest clients fail before any bytes are read.
+  const declaredLength = Number(request.headers.get('content-length'));
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_MULTIPART_BYTES) {
+    return { ok: false, status: 413, error: TOO_LARGE_ERROR };
+  }
+
+  if (!request.body) {
+    return { ok: false, status: 400, error: 'Missing request body.' };
+  }
+
+  let received = 0;
+  let exceeded = false;
+  const boundedBody = request.body.pipeThrough(
+    new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, controller) {
+        received += chunk.byteLength;
+        if (received > MAX_MULTIPART_BYTES) {
+          exceeded = true;
+          controller.error(new Error('upload body exceeds limit'));
+          return;
+        }
+        controller.enqueue(chunk);
+      },
+    }),
+  );
+
+  let formData: FormData;
+  try {
+    formData = await new Response(boundedBody, {
+      headers: { 'content-type': contentType },
+    }).formData();
+  } catch {
+    return exceeded
+      ? { ok: false, status: 413, error: TOO_LARGE_ERROR }
+      : { ok: false, status: 400, error: 'Malformed multipart/form-data body.' };
+  }
+
+  const file = formData.get(UPLOAD_FIELD_NAME);
+
+  // `FormData.get()` yields a plain string when the client posts a text part
+  // under this name instead of a file part, so the value has to be narrowed
+  // before it is treated as a file.
+  if (!file || typeof file === 'string') {
+    return {
+      ok: false,
+      status: 400,
+      error: `No file provided. Use the "${UPLOAD_FIELD_NAME}" field.`,
+    };
+  }
+
+  if (file.size > MAX_UPLOAD_BYTES) {
+    return { ok: false, status: 413, error: TOO_LARGE_ERROR };
+  }
+
+  return { ok: true, file };
+}
+
 // ---------------------------------------------------------------------------
 // App & Middleware
 // ---------------------------------------------------------------------------
@@ -92,8 +177,9 @@ app.get('/', (c) => {
 
   const headers: Record<string, string> = {
     'Content-Type': 'text/html; charset=utf-8',
-    // The rendered page varies by theme, so it must not be cached blindly.
-    'Cache-Control': 'no-cache',
+    // The rendered page varies by theme cookie, so it must not be stored by
+    // intermediary caches (Workers Caching is enabled for this Worker).
+    'Cache-Control': 'no-store',
     'Content-Security-Policy': [
       "default-src 'self'",
       "style-src 'self' https://cdn.jsdelivr.net",
@@ -113,25 +199,26 @@ app.get('/', (c) => {
 // Upload Endpoint: POST /upload
 // ---------------------------------------------------------------------------
 app.post('/upload', async (c) => {
+  // Anonymous uploads are rate limited per client. The binding is
+  // approximate and per Cloudflare location; a WAF rule can add a stricter
+  // edge-wide limit if needed.
+  const rateLimitKey = c.req.header('cf-connecting-ip') ?? 'unknown';
+  const { success } = await c.env.UPLOAD_RATE_LIMITER.limit({ key: rateLimitKey });
+  if (!success) {
+    c.header('Retry-After', '60');
+    console.warn(JSON.stringify({ message: 'upload rate limited' }));
+    return c.json({ error: 'Too many uploads. Please try again shortly.' }, 429);
+  }
+
   try {
-    const formData = await c.req.formData();
-    const file = formData.get(UPLOAD_FIELD_NAME);
-
-    // 1. Validate presence of file. `FormData.get()` yields a plain string
-    //    when the client posts a text part under this name instead of a file
-    //    part, so the value has to be narrowed before it is treated as a file:
-    //    a string is truthy, has no `size`, and its `slice()` returns a string
-    //    rather than a Blob.
-    if (!file || typeof file === 'string') {
-      return c.json({ error: `No file provided. Use the "${UPLOAD_FIELD_NAME}" field.` }, 400);
+    const parsed = await parseUpload(c.req.raw);
+    if (!parsed.ok) {
+      return c.json({ error: parsed.error }, parsed.status);
     }
 
-    // 2. Size limit (10 MiB).
-    if (file.size > MAX_UPLOAD_BYTES) {
-      return c.json({ error: `File too large. Maximum size is ${MAX_UPLOAD_LABEL}.` }, 413);
-    }
+    const { file } = parsed;
 
-    // 3. Sniff the real image format from the magic bytes. The browser
+    // 1. Sniff the real image format from the magic bytes. The browser
     //    supplied MIME type is only a hint: a file can be renamed to .png or
     //    claim image/png while actually holding something else entirely.
     const head = new Uint8Array(await file.slice(0, SNIFF_LENGTH).arrayBuffer());
@@ -146,12 +233,12 @@ app.post('/upload', async (c) => {
       );
     }
 
-    // 4. Generate a unique 7-character key with the canonical extension.
+    // 2. Generate a unique 7-character key with the canonical extension.
     const extension = FORMAT_EXTENSIONS[format];
     const contentType = FORMAT_MIME_TYPES[format];
     const key = `${generateId(7)}${extension}`;
 
-    // 5. Store in R2 with metadata.
+    // 3. Store in R2 with metadata.
     await c.env.IMAGES.put(key, file.stream(), {
       httpMetadata: {
         contentType,
@@ -160,7 +247,7 @@ app.post('/upload', async (c) => {
       },
     });
 
-    // 6. Build the public URL.
+    // 4. Build the public URL.
     const url = new URL(c.req.url);
     const publicUrl = `${url.origin}/${key}`;
 
@@ -174,7 +261,7 @@ app.post('/upload', async (c) => {
       }),
     );
 
-    // 7. Return the URL. Browsers posting a plain form get HTML back,
+    // 5. Return the URL. Browsers posting a plain form get HTML back,
     //    API clients get JSON.
     const accepts = c.req.header('accept') ?? '';
     if (accepts.includes('text/html')) {

@@ -59,6 +59,8 @@ Successful API requests return **201 Created** with a JSON response:
 
 The service checks the file contents to identify its image format, regardless of the filename or browser-supplied MIME type. Uploads larger than 10 MiB are rejected.
 
+Uploads are limited to 30 per minute per client and Cloudflare location; excess requests receive **429 Too Many Requests** with a `Retry-After` header. Non-multipart requests receive **415 Unsupported Media Type**, and malformed multipart bodies receive **400 Bad Request**.
+
 ## Routes
 
 | Method | Path | Description |
