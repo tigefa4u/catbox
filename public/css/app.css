@@ -307,6 +307,158 @@ main {
   color: var(--cb-muted);
 }
 
+/* ----------------------------------------------------------- upload queue */
+
+.cb-queue {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 2px solid var(--cb-border);
+}
+
+.cb-queue[hidden] {
+  display: none;
+}
+
+.cb-queue-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.cb-queue-summary {
+  margin: 0;
+  font-weight: 600;
+}
+
+.cb-queue-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.cb-queue-label {
+  font-size: 0.8rem;
+  color: var(--cb-muted);
+}
+
+.cb-select-sm {
+  font-size: 0.85rem;
+  padding: 0.35rem 0.5rem;
+}
+
+.cb-btn-sm {
+  font-size: 0.82rem;
+  padding: 0.4rem 0.75rem;
+}
+
+.cb-btn-ghost {
+  background: transparent;
+}
+
+.cb-file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 30rem;
+  margin: 0;
+  padding: 0 0.25rem 0 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.cb-file {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem;
+  background: var(--cb-dropzone-bg);
+  border: 2px solid var(--cb-border);
+  border-radius: var(--cb-radius-sm);
+}
+
+.cb-file-error {
+  background: var(--cb-danger-bg);
+  border-color: var(--cb-danger-border);
+}
+
+.cb-file-error .cb-file-status {
+  color: var(--cb-danger-fg);
+}
+
+.cb-file-thumb {
+  flex: none;
+  width: 3rem;
+  height: 3rem;
+  object-fit: cover;
+  background: var(--cb-surface);
+  border: 2px solid var(--cb-border);
+  border-radius: var(--cb-radius-sm);
+}
+
+.cb-file-info {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.cb-file-name {
+  margin: 0;
+  overflow: hidden;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cb-file-status {
+  margin: 0.15rem 0 0;
+  font-size: 0.8rem;
+  color: var(--cb-muted);
+  overflow-wrap: anywhere;
+}
+
+.cb-file-track {
+  height: 6px;
+  margin-top: 0.35rem;
+  overflow: hidden;
+  background: var(--cb-surface);
+  border: 1px solid var(--cb-border);
+  border-radius: 999px;
+}
+
+.cb-file-track[hidden] {
+  display: none;
+}
+
+.cb-file-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--cb-accent);
+  transition: width 120ms linear;
+}
+
+.cb-file-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.cb-file-open {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.4rem 0.25rem;
+  font-size: 0.85rem;
+  color: var(--cb-accent);
+}
+
+.cb-file-open[hidden] {
+  display: none;
+}
+
 /* ----------------------------------------------------------------- modal */
 
 /* The modal markup uses Bootstrap 5's own class names, so in the Bootstrap
@@ -794,5 +946,28 @@ body.cb-modal-open {
   .cb-footer-meta,
   .cb-footer-hosted {
     align-items: flex-start;
+  }
+
+  .cb-queue-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .cb-queue-label {
+    display: none;
+  }
+
+  .cb-file {
+    flex-wrap: wrap;
+  }
+
+  .cb-file-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .cb-file-actions .cb-btn,
+  .cb-file-open {
+    min-height: 2.5rem;
   }
 }

@@ -77,8 +77,8 @@ ${themeOptions}
 
     <main>
       <section class="cb-card">
-        <h1 class="cb-title">Upload an image</h1>
-        <p class="cb-subtitle">Up to ${escapeHtml(MAX_UPLOAD_LABEL)} per file. ${escapeHtml(SUPPORTED_FORMATS_LABEL)} are welcome.</p>
+        <h1 class="cb-title">Upload images</h1>
+        <p class="cb-subtitle">Up to ${escapeHtml(MAX_UPLOAD_LABEL)} per file. ${escapeHtml(SUPPORTED_FORMATS_LABEL)} are welcome. Select several at once to upload a whole batch.</p>
 
         <form class="cb-upload-form" id="cb-upload-form" method="post" action="/upload" enctype="multipart/form-data" data-max-size="${MAX_UPLOAD_BYTES}" data-field-name="${escapeHtml(UPLOAD_FIELD_NAME)}">
           <label class="cb-dropzone" for="cb-file" data-dropzone>
@@ -96,38 +96,35 @@ ${themeOptions}
               <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"/>
               <path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708z"/>
             </svg>
-            <span>Upload</span>
+            <span data-submit-label>Upload</span>
           </button>
         </form>
 
         <div class="cb-progress" id="cb-progress" hidden>
-          <div class="cb-progress-track" role="progressbar" aria-label="Upload progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-progress-bar>
+          <div class="cb-progress-track" role="progressbar" aria-label="Overall upload progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-progress-bar>
             <div class="cb-progress-bar" data-progress-fill></div>
           </div>
           <p class="cb-progress-label" data-progress-label>Uploading…</p>
         </div>
 
-        <div class="cb-result" id="cb-result" hidden>
-          <img class="cb-result-preview" id="cb-preview" alt="Uploaded image preview" hidden>
-          <div class="cb-result-body">
-            <p class="cb-result-label">Your image is ready</p>
-            <a class="cb-result-url" id="cb-result-url" href="#" target="_blank" rel="noopener noreferrer"></a>
-
-            <div class="cb-copy" data-copy-box>
-              <div class="cb-copy-tabs nav nav-tabs" role="tablist" aria-label="Copy format">
-                <button class="cb-copy-tab nav-link active" type="button" role="tab" id="cb-tab-link" aria-selected="true" aria-controls="cb-copy-panel" data-copy-format="link">Link</button>
-                <button class="cb-copy-tab nav-link" type="button" role="tab" id="cb-tab-markdown" aria-selected="false" aria-controls="cb-copy-panel" tabindex="-1" data-copy-format="markdown">Markdown</button>
-                <button class="cb-copy-tab nav-link" type="button" role="tab" id="cb-tab-html" aria-selected="false" aria-controls="cb-copy-panel" tabindex="-1" data-copy-format="html">HTML</button>
-                <button class="cb-copy-tab nav-link" type="button" role="tab" id="cb-tab-bbcode" aria-selected="false" aria-controls="cb-copy-panel" tabindex="-1" data-copy-format="bbcode">BBCode</button>
-              </div>
-              <div class="cb-copy-panel input-group" id="cb-copy-panel" role="tabpanel" aria-labelledby="cb-tab-link" tabindex="0">
-                <input class="cb-copy-input form-control" type="text" id="cb-copy-input" readonly spellcheck="false" aria-label="Value to copy">
-                <button class="cb-copy-button btn btn-primary" type="button" id="cb-copy">Copy</button>
-              </div>
-              <p class="cb-copy-status" id="cb-copy-status" role="status" aria-live="polite"></p>
+        <section class="cb-queue" id="cb-queue" hidden aria-label="Upload queue">
+          <div class="cb-queue-head">
+            <p class="cb-queue-summary" id="cb-queue-summary" role="status" aria-live="polite"></p>
+            <div class="cb-queue-actions">
+              <label class="cb-queue-label" for="cb-copy-format">Copy as</label>
+              <select class="cb-select cb-select-sm" id="cb-copy-format" aria-label="Copy format">
+                <option value="link">Link</option>
+                <option value="markdown">Markdown</option>
+                <option value="html">HTML</option>
+                <option value="bbcode">BBCode</option>
+              </select>
+              <button class="cb-btn cb-btn-sm" type="button" id="cb-copy-all" disabled>Copy all</button>
+              <button class="cb-btn cb-btn-sm" type="button" id="cb-clear" disabled>Clear finished</button>
             </div>
           </div>
-        </div>
+          <ul class="cb-file-list" id="cb-file-list"></ul>
+          <p class="cb-copy-status" id="cb-copy-status" role="status" aria-live="polite"></p>
+        </section>
       </section>
 
       <section class="cb-card cb-api">

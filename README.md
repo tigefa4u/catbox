@@ -4,7 +4,8 @@ Catbox is a lightweight image-hosting service built with [Cloudflare Workers](ht
 
 ## Features
 
-- Drag-and-drop or file-picker uploads, with upload progress.
+- Drag-and-drop or file-picker uploads, with per-file progress.
+- Bulk uploads: select or drop many images, review the queue, and upload them with concurrent requests.
 - PNG, JPEG, GIF, WebP, AVIF, and SVG support.
 - A 10 MiB upload limit and server-side file-format detection.
 - Copyable direct-link, Markdown, HTML, and BBCode formats.
@@ -59,7 +60,7 @@ Successful API requests return **201 Created** with a JSON response:
 
 The service checks the file contents to identify its image format, regardless of the filename or browser-supplied MIME type. Uploads larger than 10 MiB are rejected.
 
-Uploads are limited to 30 per minute per client and Cloudflare location; excess requests receive **429 Too Many Requests** with a `Retry-After` header. Non-multipart requests receive **415 Unsupported Media Type**, and malformed multipart bodies receive **400 Bad Request**.
+Uploads are limited to 120 per minute per client and Cloudflare location; excess requests receive **429 Too Many Requests** with a `Retry-After` header. The browser queue uploads one file per request with two requests in flight, and retries rate-limited or failed requests automatically. Non-multipart requests receive **415 Unsupported Media Type**, and malformed multipart bodies receive **400 Bad Request**.
 
 ## Routes
 
