@@ -689,8 +689,41 @@ body.cb-modal-open {
   font-size: 0.85rem;
 }
 
-.cb-footer p {
+.cb-footer-content {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+
+.cb-footer-content p {
   margin: 0;
+}
+
+.cb-footer-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.cb-footer-link:hover,
+.cb-footer-link:focus-visible {
+  color: var(--cb-accent);
+  text-decoration: underline;
+}
+
+.cb-footer-link:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+
+.cb-footer-icon {
+  width: 1em;
+  height: 1em;
+  fill: currentColor;
 }
 
 /* ------------------------------------------------------------------- a11y */
