@@ -275,8 +275,3 @@
   background-color: var(--bs-tertiary-bg, #f8f9fa);
   font-size: var(--bs-code-font-size, 0.875rem);
 }
-
-:root[data-theme="bootstrap"] .cb-footer {
-  color: var(--bs-secondary-color, #6c757d);
-  font-size: var(--bs-body-secondary-font-size, 0.875rem);
-}
