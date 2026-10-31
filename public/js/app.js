@@ -391,7 +391,10 @@
     var request = new XMLHttpRequest();
     request.open('POST', '/upload');
 
-    if (submitButton) submitButton.disabled = true;
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.hidden = true;
+    }
     if (progressLabel) progressLabel.textContent = 'Uploading ' + file.name + '…';
     setProgress(0);
 
@@ -413,7 +416,10 @@
     });
 
     request.addEventListener('load', function () {
-      if (submitButton) submitButton.disabled = false;
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.hidden = false;
+      }
       hideProgress();
 
       var body = null;
@@ -435,7 +441,10 @@
     });
 
     request.addEventListener('error', function () {
-      if (submitButton) submitButton.disabled = false;
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.hidden = false;
+      }
       hideProgress();
       showError(
         'Upload failed. Please check your connection and try again.',
@@ -444,7 +453,10 @@
     });
 
     request.addEventListener('abort', function () {
-      if (submitButton) submitButton.disabled = false;
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.hidden = false;
+      }
       hideProgress();
     });
 
