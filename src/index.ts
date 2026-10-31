@@ -42,7 +42,13 @@ function readThemeCookie(cookieHeader: string | undefined): string | null {
     const [name, ...rest] = part.trim().split('=');
     if (name !== THEME_COOKIE) continue;
 
-    const value = decodeURIComponent(rest.join('='));
+    let value: string;
+    try {
+      value = decodeURIComponent(rest.join('='));
+    } catch {
+      return null;
+    }
+
     return isThemeId(value) ? value : null;
   }
 
