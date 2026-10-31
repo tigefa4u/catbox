@@ -166,6 +166,15 @@ ${themeOptions}
 export function renderUploadResult(url: string, name: string, theme: Theme): string {
   const safeUrl = escapeHtml(url);
   const formats = buildCopyFormats(url, name);
+  // The result page is themed too, so it has to load the theme's vendor
+  // stylesheets exactly like renderHome does. Without them the Bootstrap
+  // theme silently drops every `--bs-*` variable and every Bootstrap
+  // component class on this page.
+  const preconnect =
+    theme.stylesheets.length > 0
+      ? `  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>\n`
+      : '';
+  const vendorStylesheets = renderVendorStylesheets(theme);
   const rows = (['link', 'markdown', 'html', 'bbcode'] as const)
     .map(
       (key) => `        <div class="cb-copy-static">
@@ -182,7 +191,7 @@ export function renderUploadResult(url: string, name: string, theme: Theme): str
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Catbox — upload complete</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/css/app.css">
+  ${preconnect}${vendorStylesheets}${vendorStylesheets ? '\n' : ''}  <link rel="stylesheet" href="/css/app.css">
   <link rel="stylesheet" href="/css/themes.css">
 </head>
 <body>

@@ -109,10 +109,14 @@ app.get('/', (c) => {
 app.post('/upload', async (c) => {
   try {
     const formData = await c.req.formData();
-    const file = formData.get(UPLOAD_FIELD_NAME) as File | null;
+    const file = formData.get(UPLOAD_FIELD_NAME);
 
-    // 1. Validate presence of file.
-    if (!file) {
+    // 1. Validate presence of file. `FormData.get()` yields a plain string
+    //    when the client posts a text part under this name instead of a file
+    //    part, so the value has to be narrowed before it is treated as a file:
+    //    a string is truthy, has no `size`, and its `slice()` returns a string
+    //    rather than a Blob.
+    if (!file || typeof file === 'string') {
       return c.json({ error: `No file provided. Use the "${UPLOAD_FIELD_NAME}" field.` }, 400);
     }
 
