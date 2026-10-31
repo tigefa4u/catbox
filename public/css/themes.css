@@ -1,0 +1,282 @@
+/* Catbox — theme palettes.
+   Each theme overrides the custom properties consumed by app.css.
+   The Bootstrap theme additionally maps onto Bootstrap 5 components. */
+
+/* --------------------------------------------------------------- classic */
+
+:root[data-theme="classic"] {
+  --cb-bg: #cce8ed;
+  --cb-surface: #ffffff;
+  --cb-fg: #142c3c;
+  --cb-muted: #4b6b7a;
+  --cb-border: #3f8694;
+  --cb-accent: #3f8694;
+  --cb-accent-hover: #347482;
+  --cb-accent-contrast: #ffffff;
+  --cb-dropzone-bg: #e4f4f8;
+  --cb-dropzone-bg-hover: #d2edf3;
+  --cb-btn-hover-bg: #e4f4f8;
+  --cb-code-bg: #e4f4f8;
+  --cb-danger-bg: #fdecec;
+  --cb-danger-fg: #a53434;
+  --cb-danger-border: #d46a6a;
+}
+
+/* ------------------------------------------------------------------ dark */
+
+:root[data-theme="dark"] {
+  --cb-bg: #12161d;
+  --cb-surface: #1b212b;
+  --cb-fg: #e8edf4;
+  --cb-muted: #9aa8b8;
+  --cb-border: #334052;
+  --cb-accent: #57a1b7;
+  --cb-accent-hover: #6fb8ce;
+  --cb-accent-contrast: #0b1117;
+  --cb-dropzone-bg: #171d26;
+  --cb-dropzone-bg-hover: #202834;
+  --cb-btn-hover-bg: #232b37;
+  --cb-code-bg: #12161d;
+  --cb-danger-bg: #341d1f;
+  --cb-danger-fg: #f3b1b1;
+  --cb-danger-border: #7a3a3d;
+}
+
+/* -------------------------------------------------------------- bootstrap */
+
+:root[data-theme="bootstrap"] {
+  --cb-bg: var(--bs-body-bg, #ffffff);
+  --cb-surface: var(--bs-body-bg, #ffffff);
+  --cb-fg: var(--bs-body-color, #212529);
+  --cb-muted: var(--bs-secondary-color, #6c757d);
+  --cb-border: var(--bs-border-color, #dee2e6);
+  --cb-accent: var(--bs-primary, #0d6efd);
+  --cb-accent-hover: var(--bs-primary-hover, #0b5ed7);
+  --cb-accent-contrast: var(--bs-primary-contrast-foreground, #ffffff);
+  --cb-dropzone-bg: var(--bs-tertiary-bg, #f8f9fa);
+  --cb-dropzone-bg-hover: var(--bs-secondary-bg, #e9ecef);
+  --cb-btn-hover-bg: var(--bs-tertiary-bg, #f8f9fa);
+  --cb-code-bg: var(--bs-tertiary-bg, #f8f9fa);
+  --cb-danger-bg: var(--bs-danger-bg-subtle, #f8d7da);
+  --cb-danger-fg: var(--bs-danger-text-emphasis, #842029);
+  --cb-danger-border: var(--bs-danger-border-subtle, #f1aeb5);
+}
+
+/* The Bootstrap theme leans on Bootstrap's own radius, shadow and focus
+   ring so the page reads as a stock Bootstrap 5 application. */
+
+:root[data-theme="bootstrap"] body {
+  background: var(--bs-body-bg, #ffffff);
+  color: var(--bs-body-color, #212529);
+  font-family: var(--bs-body-font-family, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
+}
+
+:root[data-theme="bootstrap"] .cb-shell {
+  max-width: 48rem;
+}
+
+:root[data-theme="bootstrap"] .cb-card {
+  border: var(--bs-border-width, 1px) solid var(--bs-border-color, #dee2e6);
+  border-radius: var(--bs-border-radius-lg, 0.5rem);
+  padding: var(--bs-card-spacer-y, 1rem) var(--bs-card-spacer-x, 1rem);
+  box-shadow: var(--bs-box-shadow-sm, 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075));
+}
+
+:root[data-theme="bootstrap"] .cb-title {
+  font-size: var(--bs-heading-3-font-size, 1.75rem);
+  font-weight: var(--bs-heading-font-weight, 500);
+}
+
+:root[data-theme="bootstrap"] .cb-heading {
+  font-size: var(--bs-heading-5-font-size, 1.25rem);
+  font-weight: var(--bs-heading-font-weight, 500);
+}
+
+:root[data-theme="bootstrap"] .cb-subtitle {
+  color: var(--bs-secondary-color, #6c757d);
+}
+
+:root[data-theme="bootstrap"] .cb-logo {
+  color: var(--bs-primary, #0d6efd);
+}
+
+:root[data-theme="bootstrap"] .cb-brand-name {
+  font-weight: var(--bs-heading-font-weight, 500);
+}
+
+:root[data-theme="bootstrap"] .cb-tagline {
+  color: var(--bs-secondary-color, #6c757d);
+}
+
+:root[data-theme="bootstrap"] .cb-select {
+  font-size: var(--bs-form-select-font-size, 1rem);
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--bs-body-color, #212529);
+  background-color: var(--bs-body-bg, #ffffff);
+  border: var(--bs-border-width, 1px) solid var(--bs-border-color, #dee2e6);
+  border-radius: var(--bs-border-radius, 0.375rem);
+  padding: var(--bs-form-select-padding-y, 0.375rem) var(--bs-form-select-padding-x, 0.75rem);
+}
+
+:root[data-theme="bootstrap"] .cb-select:focus-visible {
+  border-color: var(--bs-form-select-focus-border-color, #86b7fe);
+  outline: 0;
+  box-shadow: 0 0 0 var(--bs-focus-ring-width, 0.25rem) var(--bs-focus-ring-color, rgba(13, 110, 253, 0.25));
+}
+
+:root[data-theme="bootstrap"] .cb-dropzone {
+  border: var(--bs-border-width, 1px) dashed var(--bs-border-color, #dee2e6);
+  border-radius: var(--bs-border-radius, 0.375rem);
+  background-color: var(--bs-tertiary-bg, #f8f9fa);
+  padding: 3rem 1.25rem;
+}
+
+:root[data-theme="bootstrap"] .cb-dropzone:hover,
+:root[data-theme="bootstrap"] .cb-dropzone:focus-within,
+:root[data-theme="bootstrap"] .cb-dropzone.is-dragging {
+  background-color: var(--bs-secondary-bg, #e9ecef);
+  border-color: var(--bs-primary, #0d6efd);
+}
+
+:root[data-theme="bootstrap"] .cb-dropzone:focus-within {
+  outline: 0;
+  box-shadow: 0 0 0 var(--bs-focus-ring-width, 0.25rem) var(--bs-focus-ring-color, rgba(13, 110, 253, 0.25));
+}
+
+:root[data-theme="bootstrap"] .cb-dropzone-title {
+  font-size: var(--bs-body-font-size, 1rem);
+  font-weight: 500;
+}
+
+:root[data-theme="bootstrap"] .cb-dropzone-hint {
+  font-size: var(--bs-body-secondary-font-size, 0.875rem);
+  color: var(--bs-secondary-color, #6c757d);
+}
+
+:root[data-theme="bootstrap"] .cb-btn {
+  font-size: var(--bs-btn-font-size, 1rem);
+  font-weight: var(--bs-btn-font-weight, 400);
+  line-height: var(--bs-btn-line-height, 1.5);
+  padding: var(--bs-btn-padding-y, 0.375rem) var(--bs-btn-padding-x, 0.75rem);
+  border-radius: var(--bs-btn-border-radius, 0.375rem);
+  border: var(--bs-border-width, 1px) solid var(--bs-border-color, #dee2e6);
+  color: var(--bs-body-color, #212529);
+  background-color: var(--bs-body-bg, #ffffff);
+  box-shadow: none;
+}
+
+:root[data-theme="bootstrap"] .cb-btn:hover {
+  background-color: var(--bs-tertiary-bg, #f8f9fa);
+  border-color: var(--bs-border-color, #dee2e6);
+}
+
+:root[data-theme="bootstrap"] .cb-btn:focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 var(--bs-focus-ring-width, 0.25rem) var(--bs-focus-ring-color, rgba(13, 110, 253, 0.25));
+}
+
+:root[data-theme="bootstrap"] .cb-btn-primary {
+  color: var(--bs-btn-color, #fff);
+  background-color: var(--bs-btn-bg, #0d6efd);
+  border-color: var(--bs-btn-border-color, #0d6efd);
+}
+
+:root[data-theme="bootstrap"] .cb-btn-primary:hover {
+  color: var(--bs-btn-hover-color, #fff);
+  background-color: var(--bs-btn-hover-bg, #0b5ed7);
+  border-color: var(--bs-btn-hover-border-color, #0b5ed7);
+}
+
+:root[data-theme="bootstrap"] .cb-progress-track {
+  height: 1rem;
+  background-color: var(--bs-progress-bg, #e9ecef);
+  border: 0;
+  border-radius: var(--bs-border-radius, 0.375rem);
+}
+
+:root[data-theme="bootstrap"] .cb-progress-bar {
+  background-color: var(--bs-progress-bar-bg, #0d6efd);
+  border-radius: var(--bs-border-radius, 0.375rem);
+}
+
+:root[data-theme="bootstrap"] .cb-progress-label {
+  font-size: var(--bs-body-secondary-font-size, 0.875rem);
+  color: var(--bs-secondary-color, #6c757d);
+}
+
+:root[data-theme="bootstrap"] .cb-result {
+  padding: var(--bs-card-spacer-y, 1rem) var(--bs-card-spacer-x, 1rem);
+  border: var(--bs-border-width, 1px) solid var(--bs-border-color, #dee2e6);
+  border-radius: var(--bs-border-radius, 0.375rem);
+  background-color: var(--bs-tertiary-bg, #f8f9fa);
+}
+
+:root[data-theme="bootstrap"] .cb-result-preview {
+  border: var(--bs-border-width, 1px) solid var(--bs-border-color, #dee2e6);
+  border-radius: var(--bs-border-radius, 0.375rem);
+}
+
+:root[data-theme="bootstrap"] .cb-result-label {
+  font-weight: 500;
+}
+
+:root[data-theme="bootstrap"] .cb-result-url {
+  color: var(--bs-link-color, #0d6efd);
+  font-family: var(--bs-font-monospace, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: var(--bs-body-secondary-font-size, 0.875rem);
+}
+
+/* The copy box reuses Bootstrap's nav-tabs and input-group, so it only
+   needs the small adjustments Bootstrap does not provide on its own. */
+
+:root[data-theme="bootstrap"] .cb-copy {
+  margin-top: var(--bs-spacer, 1rem);
+}
+
+:root[data-theme="bootstrap"] .cb-copy-tabs {
+  margin-bottom: 0;
+}
+
+:root[data-theme="bootstrap"] .cb-copy-panel {
+  width: 100%;
+}
+
+:root[data-theme="bootstrap"] .cb-copy-input {
+  font-family: var(--bs-font-monospace, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: var(--bs-body-secondary-font-size, 0.875rem);
+}
+
+:root[data-theme="bootstrap"] .cb-copy-status {
+  color: var(--bs-secondary-color, #6c757d);
+  font-size: var(--bs-body-secondary-font-size, 0.875rem);
+}
+
+:root[data-theme="bootstrap"] .cb-copy-static-list {
+  margin: var(--bs-spacer, 1rem) 0;
+}
+
+:root[data-theme="bootstrap"] .cb-copy-static-label {
+  color: var(--bs-secondary-color, #6c757d);
+}
+
+:root[data-theme="bootstrap"] .cb-copy-static-value {
+  display: block;
+  background-color: var(--bs-tertiary-bg, #f8f9fa);
+  border: var(--bs-border-width, 1px) solid var(--bs-border-color, #dee2e6);
+  border-radius: var(--bs-border-radius, 0.375rem);
+  font-size: var(--bs-code-font-size, 0.875rem);
+}
+
+:root[data-theme="bootstrap"] .cb-code {
+  padding: var(--bs-code-padding-y, 1rem) var(--bs-code-padding-x, 1rem);
+  border: var(--bs-border-width, 1px) solid var(--bs-border-color, #dee2e6);
+  border-radius: var(--bs-border-radius, 0.375rem);
+  background-color: var(--bs-tertiary-bg, #f8f9fa);
+  font-size: var(--bs-code-font-size, 0.875rem);
+}
+
+:root[data-theme="bootstrap"] .cb-footer {
+  color: var(--bs-secondary-color, #6c757d);
+  font-size: var(--bs-body-secondary-font-size, 0.875rem);
+}

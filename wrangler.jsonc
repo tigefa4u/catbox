@@ -1,0 +1,30 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "catbox",
+  "main": "src/index.ts",
+  // Latest date supported by the installed workerd runtime (1.20261023.1).
+  // Bump to 2026-10-31 once the runtime catches up.
+  "compatibility_date": "2026-10-30",
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 1
+    }
+  },
+  "assets": {
+    "directory": "./public",
+    // "/" is rendered by the Worker (theme-aware), everything else is static.
+    "run_worker_first": ["/"]
+  },
+  "r2_buckets": [
+    {
+      "binding": "IMAGES",
+      "bucket_name": "catbox-images"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+.wrangler/
+node_modules/
+.dev.vars
+agents.md.bak
+*.log
+.DS_Store
+.env
+.env.dev
+

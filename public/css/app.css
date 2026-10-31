@@ -1,0 +1,717 @@
+/* Catbox — shared layout and component styles.
+   Theme-specific colors live in themes.css and are applied via
+   [data-theme="..."] on <html>. */
+
+:root {
+  --cb-font: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --cb-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --cb-radius: 25px;
+  --cb-radius-sm: 8px;
+  --cb-gap: 1.5rem;
+  --cb-max-width: 56rem;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--cb-font);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--cb-bg);
+  color: var(--cb-fg);
+}
+
+.cb-shell {
+  width: 100%;
+  max-width: var(--cb-max-width);
+  padding: 2.5rem 1.25rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cb-gap);
+  flex: 1;
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cb-gap);
+}
+
+/* ---------------------------------------------------------------- header */
+
+.cb-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.cb-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.cb-logo {
+  width: 3rem;
+  height: 3rem;
+  color: var(--cb-accent);
+  flex: none;
+}
+
+.cb-brand-name {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.cb-tagline {
+  margin: 0.15rem 0 0;
+  font-size: 0.9rem;
+  color: var(--cb-muted);
+}
+
+.cb-theme-form {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cb-theme-label {
+  font-size: 0.85rem;
+  color: var(--cb-muted);
+}
+
+.cb-select {
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: var(--cb-fg);
+  background: var(--cb-surface);
+  border: 2px solid var(--cb-border);
+  border-radius: var(--cb-radius-sm);
+  padding: 0.45rem 0.6rem;
+  cursor: pointer;
+}
+
+.cb-select:focus-visible {
+  outline: 3px solid var(--cb-accent);
+  outline-offset: 2px;
+}
+
+/* ----------------------------------------------------------------- cards */
+
+.cb-card {
+  background: var(--cb-surface);
+  border: 2px solid var(--cb-border);
+  border-radius: var(--cb-radius);
+  padding: 1.75rem;
+}
+
+.cb-title {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.cb-heading {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.cb-subtitle {
+  margin: 0.4rem 0 1.25rem;
+  color: var(--cb-muted);
+  font-size: 0.98rem;
+  line-height: 1.5;
+}
+
+.cb-code {
+  margin: 0;
+  padding: 0.9rem 1rem;
+  overflow-x: auto;
+  background: var(--cb-code-bg);
+  border: 2px solid var(--cb-border);
+  border-radius: var(--cb-radius-sm);
+  font-family: var(--cb-mono);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.cb-code code {
+  font-family: inherit;
+}
+
+/* --------------------------------------------------------------- dropzone */
+
+.cb-upload-form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1rem;
+}
+
+.cb-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 13rem;
+  padding: 2rem 1.25rem;
+  text-align: center;
+  cursor: pointer;
+  border: 2px dashed var(--cb-border);
+  border-radius: var(--cb-radius);
+  background: var(--cb-dropzone-bg);
+  transition: background-color 150ms linear, border-color 150ms linear;
+}
+
+.cb-dropzone:hover,
+.cb-dropzone:focus-within {
+  background: var(--cb-dropzone-bg-hover);
+  border-color: var(--cb-accent);
+}
+
+.cb-dropzone:focus-within {
+  outline: 3px solid var(--cb-accent);
+  outline-offset: 2px;
+}
+
+.cb-dropzone.is-dragging {
+  background: var(--cb-dropzone-bg-hover);
+  border-color: var(--cb-accent);
+  border-style: solid;
+}
+
+.cb-dropzone-icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  color: var(--cb-accent);
+}
+
+.cb-dropzone-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.cb-dropzone-hint {
+  font-size: 0.9rem;
+  color: var(--cb-muted);
+}
+
+.cb-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------------------------------------------------------------- buttons */
+
+.cb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  padding: 0.7rem 1.4rem;
+  color: var(--cb-fg);
+  background: var(--cb-surface);
+  border: 2px solid var(--cb-border);
+  border-radius: var(--cb-radius-sm);
+  transition: background-color 150ms linear;
+}
+
+.cb-btn:hover {
+  background: var(--cb-btn-hover-bg);
+}
+
+.cb-btn:focus-visible {
+  outline: 3px solid var(--cb-accent);
+  outline-offset: 2px;
+}
+
+.cb-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cb-btn-primary {
+  align-self: flex-start;
+  color: var(--cb-accent-contrast);
+  background: var(--cb-accent);
+  border-color: var(--cb-accent);
+}
+
+.cb-btn-primary:hover {
+  background: var(--cb-accent-hover);
+}
+
+/* --------------------------------------------------------------- progress */
+
+.cb-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.cb-progress[hidden] {
+  display: none;
+}
+
+.cb-progress-track {
+  height: 12px;
+  overflow: hidden;
+  background: var(--cb-dropzone-bg);
+  border: 2px solid var(--cb-border);
+  border-radius: 999px;
+}
+
+.cb-progress-bar {
+  height: 100%;
+  width: 0%;
+  background: var(--cb-accent);
+  transition: width 120ms linear;
+}
+
+.cb-progress-label {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--cb-muted);
+}
+
+/* ----------------------------------------------------------------- modal */
+
+/* The modal markup uses Bootstrap 5's own class names, so in the Bootstrap
+   theme it is styled entirely by Bootstrap's stylesheet. Bootstrap's
+   JavaScript is not loaded, so `cb-modal-visible` is what makes the dialog
+   appear; the `show` class drives Bootstrap's fade transition. */
+
+.cb-modal {
+  display: none;
+}
+
+.cb-modal.cb-modal-visible {
+  display: block;
+}
+
+.cb-modal-backdrop {
+  display: none;
+}
+
+.cb-modal-backdrop.cb-modal-visible {
+  display: block;
+}
+
+/* The fallback skin for the themes that do not load Bootstrap. The rules
+   are scoped so they can never override Bootstrap's own styles. */
+
+:root:not([data-theme="bootstrap"]) .modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1055;
+  overflow-y: auto;
+  opacity: 0;
+  transition: opacity 150ms linear;
+}
+
+:root:not([data-theme="bootstrap"]) .modal.show {
+  opacity: 1;
+}
+
+:root:not([data-theme="bootstrap"]) .cb-modal.cb-modal-visible {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+:root:not([data-theme="bootstrap"]) .modal-dialog {
+  position: relative;
+  width: 100%;
+  max-width: 32rem;
+  margin: auto;
+  pointer-events: none;
+}
+
+:root:not([data-theme="bootstrap"]) .modal-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  pointer-events: auto;
+  background: var(--cb-surface);
+  color: var(--cb-fg);
+  border: 2px solid var(--cb-border);
+  border-radius: var(--cb-radius);
+  box-shadow: 0 1.5rem 3rem rgba(0, 0, 0, 0.3);
+}
+
+:root:not([data-theme="bootstrap"]) .modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 2px solid var(--cb-border);
+}
+
+:root:not([data-theme="bootstrap"]) .modal-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+:root:not([data-theme="bootstrap"]) .modal-body {
+  padding: 1.25rem;
+}
+
+:root:not([data-theme="bootstrap"]) .modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.85rem 1.25rem;
+  border-top: 2px solid var(--cb-border);
+}
+
+:root:not([data-theme="bootstrap"]) .btn-close {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  color: var(--cb-fg);
+  background: transparent;
+  border: 0;
+  border-radius: var(--cb-radius-sm);
+  cursor: pointer;
+}
+
+/* Bootstrap draws its own cross with a background image, so the fallback
+   themes have to draw it themselves. */
+:root:not([data-theme="bootstrap"]) .btn-close::before,
+:root:not([data-theme="bootstrap"]) .btn-close::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 1.1rem;
+  height: 2px;
+  background: currentColor;
+  border-radius: 1px;
+}
+
+:root:not([data-theme="bootstrap"]) .btn-close::before {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+:root:not([data-theme="bootstrap"]) .btn-close::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+:root:not([data-theme="bootstrap"]) .btn-close:hover {
+  background: var(--cb-btn-hover-bg);
+}
+
+:root:not([data-theme="bootstrap"]) .btn-close:focus-visible {
+  outline: 3px solid var(--cb-accent);
+  outline-offset: 2px;
+}
+
+:root:not([data-theme="bootstrap"]) .btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--cb-fg);
+  background: var(--cb-surface);
+  border: 2px solid var(--cb-border);
+  border-radius: var(--cb-radius-sm);
+  cursor: pointer;
+  padding: 0.55rem 1.1rem;
+}
+
+:root:not([data-theme="bootstrap"]) .btn-secondary:hover {
+  background: var(--cb-btn-hover-bg);
+}
+
+:root:not([data-theme="bootstrap"]) .btn-secondary:focus-visible {
+  outline: 3px solid var(--cb-accent);
+  outline-offset: 2px;
+}
+
+:root:not([data-theme="bootstrap"]) .modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+  background: rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  transition: opacity 150ms linear;
+}
+
+:root:not([data-theme="bootstrap"]) .modal-backdrop.show {
+  opacity: 1;
+}
+
+/* Prevent the page behind the modal from scrolling. */
+body.cb-modal-open {
+  overflow: hidden;
+}
+
+/* ----------------------------------------------------------------- result */
+
+.cb-result {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.25rem;
+  margin-top: 1.25rem;
+  padding: 1rem;
+  border: 2px solid var(--cb-border);
+  border-radius: var(--cb-radius);
+  background: var(--cb-dropzone-bg);
+}
+
+.cb-result[hidden] {
+  display: none;
+}
+
+.cb-result-preview {
+  width: 7rem;
+  height: 7rem;
+  object-fit: cover;
+  border: 2px solid var(--cb-border);
+  border-radius: var(--cb-radius-sm);
+  background: var(--cb-surface);
+}
+
+.cb-result-preview[hidden] {
+  display: none;
+}
+
+.cb-result-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.45rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.cb-result-label {
+  margin: 0;
+  font-weight: 700;
+}
+
+.cb-result-url {
+  color: var(--cb-accent);
+  font-family: var(--cb-mono);
+  font-size: 0.88rem;
+  word-break: break-all;
+}
+
+/* -------------------------------------------------------------- copy box */
+
+/* The markup reuses Bootstrap's nav-tabs and input-group components, so the
+   Bootstrap theme gets them for free. The rules below are the fallback for
+   the themes that do not load Bootstrap's stylesheet. */
+
+.cb-copy {
+  width: 100%;
+  margin-top: 0.35rem;
+}
+
+.cb-copy-status {
+  margin: 0.45rem 0 0;
+  min-height: 1.1rem;
+  font-size: 0.8rem;
+  color: var(--cb-muted);
+}
+
+:root:not([data-theme="bootstrap"]) .cb-copy-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  border-bottom: 2px solid var(--cb-border);
+}
+
+:root:not([data-theme="bootstrap"]) .cb-copy-tab {
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.4;
+  padding: 0.4rem 0.75rem;
+  color: var(--cb-muted);
+  background: transparent;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  border-radius: var(--cb-radius-sm) var(--cb-radius-sm) 0 0;
+  cursor: pointer;
+}
+
+:root:not([data-theme="bootstrap"]) .cb-copy-tab:hover {
+  color: var(--cb-fg);
+  background: var(--cb-btn-hover-bg);
+}
+
+:root:not([data-theme="bootstrap"]) .cb-copy-tab:focus-visible {
+  outline: 3px solid var(--cb-accent);
+  outline-offset: -3px;
+}
+
+:root:not([data-theme="bootstrap"]) .cb-copy-tab.active {
+  color: var(--cb-accent);
+  border-bottom-color: var(--cb-accent);
+}
+
+:root:not([data-theme="bootstrap"]) .cb-copy-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+
+:root:not([data-theme="bootstrap"]) .cb-copy-input {
+  flex: 1 1 16rem;
+  min-width: 0;
+  font-family: var(--cb-mono);
+  font-size: 0.82rem;
+  padding: 0.5rem 0.65rem;
+  color: var(--cb-fg);
+  background: var(--cb-surface);
+  border: 2px solid var(--cb-border);
+  border-radius: var(--cb-radius-sm);
+}
+
+:root:not([data-theme="bootstrap"]) .cb-copy-input:focus-visible {
+  outline: 3px solid var(--cb-accent);
+  outline-offset: 2px;
+}
+
+:root:not([data-theme="bootstrap"]) .cb-copy-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--cb-accent-contrast);
+  background: var(--cb-accent);
+  border: 2px solid var(--cb-accent);
+  border-radius: var(--cb-radius-sm);
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+}
+
+:root:not([data-theme="bootstrap"]) .cb-copy-button:hover {
+  background: var(--cb-accent-hover);
+}
+
+:root:not([data-theme="bootstrap"]) .cb-copy-button:focus-visible {
+  outline: 3px solid var(--cb-accent);
+  outline-offset: 2px;
+}
+
+/* Static variant used on the no-JavaScript result page. */
+.cb-copy-static-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.cb-copy-static {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.cb-copy-static-label {
+  flex: none;
+  width: 5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--cb-muted);
+}
+
+.cb-copy-static-value {
+  flex: 1 1 12rem;
+  min-width: 0;
+  font-family: var(--cb-mono);
+  font-size: 0.8rem;
+  word-break: break-all;
+  padding: 0.4rem 0.55rem;
+  background: var(--cb-code-bg);
+  border: 2px solid var(--cb-border);
+  border-radius: var(--cb-radius-sm);
+}
+
+/* ----------------------------------------------------------------- footer */
+
+.cb-footer {
+  margin-top: auto;
+  padding-top: 1rem;
+  text-align: center;
+  color: var(--cb-muted);
+  font-size: 0.85rem;
+}
+
+.cb-footer p {
+  margin: 0;
+}
+
+/* ------------------------------------------------------------------- a11y */
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+@media (max-width: 40rem) {
+  .cb-shell {
+    padding: 1.5rem 1rem 2rem;
+  }
+
+  .cb-card {
+    padding: 1.25rem;
+  }
+
+  .cb-header {
+    align-items: flex-start;
+  }
+}

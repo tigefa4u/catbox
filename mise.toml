@@ -1,0 +1,17 @@
+[tools]
+node = "latest"
+"npm:cf" = "latest"
+"npm:wrangler" = "latest"
+python = "latest"
+
+[tasks.dev]
+description = "Run local preview (wrangler dev on :8787)"
+run = "npm run dev"
+
+[tasks.deploy]
+description = "never run wrangler deploy explicit ask"
+run = "npm run deploy"
+
+[tasks.typecheck]
+description = "Regenerate Worker types and type-check the project"
+run = "npm run typecheck"
