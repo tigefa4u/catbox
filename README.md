@@ -11,6 +11,7 @@ Catbox is a lightweight image-hosting service built with [Cloudflare Workers](ht
 - Copyable direct-link, Markdown, HTML, and BBCode formats.
 - One-click light/dark theme toggle: Classic (light) and Bootstrap (dark), following the browser preference on first visit.
 - Images stored in R2 and served with long-lived caching.
+- Missing image URLs return the bundled Catbox logo instead of a plain 404.
 - A JSON upload API with CORS enabled.
 
 ## Requirements
@@ -68,7 +69,13 @@ Uploads are limited to 120 per minute per client and Cloudflare location; excess
 | --- | --- | --- |
 | `GET` | `/` | Image upload interface. Use `?theme=classic`, `?theme=dark`, or `?theme=bootstrap` to select a theme, or `?theme=auto` to follow the browser preference. |
 | `POST` | `/upload` | Upload an image as multipart form data. |
-| `GET` | `/:filename` | Retrieve an uploaded image. |
+| `GET` | `/:filename` | Retrieve an uploaded image, or the Catbox logo when the key is missing. |
+
+## Default image
+
+A request for a valid image key that is not stored in R2 returns the bundled Catbox logo at `/default-image.png` with **200 OK** instead of a plain 404. This keeps broken or deleted image embeds showing the Catbox branding.
+
+The logo is a static asset, so the fallback works on a fresh deployment and in local development with an empty R2 bucket. Fallback responses are cached for five minutes, allowing a later upload at the same key to take over. Non-image paths continue to return 404.
 
 ## Themes
 

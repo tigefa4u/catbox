@@ -1,5 +1,5 @@
 // src/index.ts
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { cors } from 'hono/cors';
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL, UPLOAD_FIELD_NAME } from './constants';
 import {
@@ -144,6 +144,52 @@ async function parseUpload(request: Request): Promise<UploadParseResult> {
   }
 
   return { ok: true, file };
+}
+
+
+/** Static Catbox logo served when an image key is missing from R2. */
+const DEFAULT_IMAGE_PATH = '/default-image.png';
+
+/** Canonical uploaded-image keys: seven characters plus a supported extension. */
+const IMAGE_KEY_PATTERN = /^[a-z0-9]{7}\.(png|jpe?g|gif|webp|avif|svg)$/i;
+
+/**
+ * Serve the bundled Catbox logo for a missing image key.
+ *
+ * The logo is a static asset, so the fallback works on a fresh deployment and
+ * in local development where R2 is empty.
+ */
+async function serveDefaultImage(c: Context<{ Bindings: Env }>): Promise<Response> {
+  try {
+    const assetUrl = new URL(DEFAULT_IMAGE_PATH, c.req.url).toString();
+    const asset = await c.env.ASSETS.fetch(assetUrl);
+
+    if (!asset.ok) {
+      console.error(
+        JSON.stringify({ message: 'default image missing', status: asset.status }),
+      );
+      return c.text('Not found', 404);
+    }
+
+    const headers = new Headers(asset.headers);
+    // Short cache: a missing key gets the logo, but a later upload should be
+    // able to take over the URL without waiting a year.
+    headers.set('Cache-Control', 'public, max-age=300');
+    headers.set('Content-Security-Policy', "default-src 'none'; sandbox");
+    headers.set('Cross-Origin-Resource-Policy', 'cross-origin');
+    // Do not let crawlers index a fallback as if it were the missing image.
+    headers.set('X-Robots-Tag', 'noindex');
+
+    return new Response(asset.body, { status: 200, headers });
+  } catch (err) {
+    console.error(
+      JSON.stringify({
+        message: 'default image failed',
+        error: err instanceof Error ? err.message : String(err),
+      }),
+    );
+    return c.text('Not found', 404);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -316,15 +362,16 @@ app.post('/upload', async (c) => {
 app.get('/:filename', async (c) => {
   const filename = c.req.param('filename');
 
-  // Basic sanity check – prevent directory traversal.
-  if (!/^[a-z0-9]{7}\.[a-z0-9]+$/i.test(filename)) {
+  // Only canonical uploaded-image keys are served; anything else is a 404.
+  if (!IMAGE_KEY_PATTERN.test(filename)) {
     return c.text('Not found', 404);
   }
 
   try {
     const object = await c.env.IMAGES.get(filename);
     if (!object) {
-      return c.text('Not found', 404);
+      // Broken or deleted image URLs still show the Catbox logo.
+      return serveDefaultImage(c);
     }
 
     // Stream the object back with appropriate headers.
