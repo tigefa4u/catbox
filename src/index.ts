@@ -9,7 +9,14 @@ import {
   SUPPORTED_FORMATS_LABEL,
   detectImageFormat,
 } from './image';
-import { DEFAULT_THEME, THEMES, THEME_COOKIE, getTheme, isThemeId } from './themes';
+import {
+  AUTO_LIGHT_THEME,
+  THEMES,
+  THEME_COOKIE,
+  getTheme,
+  isThemeId,
+  type ThemeMode,
+} from './themes';
 import { renderHome, renderUploadResult } from './ui';
 
 // ---------------------------------------------------------------------------
@@ -160,19 +167,26 @@ app.use('*', async (c, next) => {
 // ---------------------------------------------------------------------------
 app.get('/', (c) => {
   // ?theme= is a one-shot setter: it stores the choice and redirects to the
-  // canonical URL so the cookie stays the single source of truth.
+  // canonical URL so the cookie stays the single source of truth. `auto`
+  // clears the choice and follows the browser's color-scheme preference.
   const requestedTheme = c.req.query('theme');
+  if (requestedTheme === 'auto') {
+    c.header('Set-Cookie', `${THEME_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax`);
+    return c.redirect('/', 302);
+  }
   if (isThemeId(requestedTheme)) {
     c.header('Set-Cookie', `${THEME_COOKIE}=${requestedTheme}; Path=/; Max-Age=31536000; SameSite=Lax`);
     return c.redirect('/', 302);
   }
 
-  const themeId = readThemeCookie(c.req.header('cookie')) ?? DEFAULT_THEME;
-  const theme = getTheme(themeId);
+  const cookieTheme = readThemeCookie(c.req.header('cookie'));
+  const themeMode: ThemeMode = cookieTheme ? 'manual' : 'auto';
+  const theme = getTheme(cookieTheme ?? AUTO_LIGHT_THEME);
   const html = renderHome({
     theme,
     themes: THEMES,
     origin: new URL(c.req.url).origin,
+    themeMode,
   });
 
   const headers: Record<string, string> = {
@@ -265,8 +279,10 @@ app.post('/upload', async (c) => {
     //    API clients get JSON.
     const accepts = c.req.header('accept') ?? '';
     if (accepts.includes('text/html')) {
-      const theme = getTheme(readThemeCookie(c.req.header('cookie')) ?? DEFAULT_THEME);
-      return new Response(renderUploadResult(publicUrl, file.name, theme), {
+      const cookieTheme = readThemeCookie(c.req.header('cookie'));
+      const themeMode: ThemeMode = cookieTheme ? 'manual' : 'auto';
+      const theme = getTheme(cookieTheme ?? AUTO_LIGHT_THEME);
+      return new Response(renderUploadResult(publicUrl, file.name, theme, themeMode), {
         status: 201,
         headers: {
           'Content-Type': 'text/html; charset=utf-8',

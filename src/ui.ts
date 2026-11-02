@@ -1,17 +1,62 @@
-import type { Theme } from './themes';
+import {
+  AUTO_DARK_THEME,
+  AUTO_LIGHT_THEME,
+  getTheme,
+  type Theme,
+  type ThemeMode,
+} from './themes';
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL, UPLOAD_FIELD_NAME } from './constants';
 import { SUPPORTED_FORMATS_LABEL } from './image';
 import { buildCopyFormats, escapeHtml } from './format';
 
-/** Render the `<link>` tags for a theme's vendor stylesheets. */
-function renderVendorStylesheets(theme: Theme): string {
+/**
+ * Render the `<link>` tags for a theme's vendor stylesheets. A `media` value
+ * is attached when the stylesheet is only a candidate (auto mode), and the
+ * Bootstrap stylesheet gets an id so the pre-paint theme script can enable it.
+ */
+function renderVendorStylesheets(theme: Theme, media?: string): string {
   return theme.stylesheets
     .map((href, index) => {
       const integrity = theme.integrity[index];
       const integrityAttr = integrity ? ` integrity="${escapeHtml(integrity)}"` : '';
-      return `  <link rel="stylesheet" href="${escapeHtml(href)}"${integrityAttr} crossorigin="anonymous">`;
+      const mediaAttr = media ? ` media="${escapeHtml(media)}"` : '';
+      const idAttr = theme.id === 'bootstrap' ? ' id="cb-bootstrap-css"' : '';
+      return `  <link rel="stylesheet" href="${escapeHtml(href)}"${integrityAttr}${mediaAttr}${idAttr} crossorigin="anonymous">`;
     })
     .join('\n');
+}
+
+/**
+ * The `data-bs-theme` value Bootstrap reads. Auto mode starts light and lets
+ * the pre-paint script switch to dark when the operating system asks for it.
+ */
+function bootstrapColorMode(theme: Theme, themeMode: ThemeMode): 'light' | 'dark' {
+  if (themeMode === 'auto') return 'light';
+  return theme.id === 'bootstrap' || theme.id === 'dark' ? 'dark' : 'light';
+}
+
+/**
+ * Vendor CSS for the active mode. In auto mode the Bootstrap stylesheet is
+ * rendered but disabled with `media="not all"`; `/js/theme-init.js` enables
+ * it before first paint when the browser prefers a dark color scheme.
+ */
+function renderThemeStyles(
+  theme: Theme,
+  themeMode: ThemeMode,
+): { preconnect: string; stylesheets: string; initScript: string } {
+  const stylesheets =
+    themeMode === 'auto'
+      ? renderVendorStylesheets(getTheme(AUTO_DARK_THEME), 'not all')
+      : renderVendorStylesheets(theme);
+
+  const preconnect = stylesheets
+    ? `  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>\n`
+    : '';
+
+  const initScript =
+    themeMode === 'auto' ? `  <script src="/js/theme-init.js"></script>\n` : '';
+
+  return { preconnect, stylesheets, initScript };
 }
 
 /** Options for {@link renderHome}. */
@@ -22,33 +67,38 @@ export interface HomeOptions {
   themes: readonly Theme[];
   /** Absolute origin of the request, used in the API example. */
   origin: string;
+  /** Whether the theme follows the system preference or an explicit choice. */
+  themeMode: ThemeMode;
 }
 
 /** Render the upload page. */
-export function renderHome({ theme, themes, origin }: HomeOptions): string {
-  const themeOptions = themes
-    .map(
-      (candidate) =>
-        `        <option value="${escapeHtml(candidate.id)}"${candidate.id === theme.id ? ' selected' : ''}>${escapeHtml(candidate.label)}</option>`,
-    )
-    .join('\n');
+export function renderHome({ theme, themes, origin, themeMode }: HomeOptions): string {
+  const autoSelected = themeMode === 'auto' ? ' selected' : '';
+  const themeOptions =
+    `        <option value="auto"${autoSelected}>Auto (system)</option>\n` +
+    themes
+      .map(
+        (candidate) =>
+          `        <option value="${escapeHtml(candidate.id)}"${themeMode === 'manual' && candidate.id === theme.id ? ' selected' : ''}>${escapeHtml(candidate.label)}</option>`,
+      )
+      .join('\n');
 
-  const preconnect =
-    theme.stylesheets.length > 0
-      ? `  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>\n`
-      : '';
-
-  const vendorStylesheets = renderVendorStylesheets(theme);
+  const {
+    preconnect,
+    stylesheets: vendorStylesheets,
+    initScript,
+  } = renderThemeStyles(theme, themeMode);
 
   return `<!DOCTYPE html>
-<html lang="en" data-theme="${escapeHtml(theme.id)}">
+<html lang="en" data-theme="${escapeHtml(theme.id)}" data-theme-mode="${themeMode}" data-bs-theme="${bootstrapColorMode(theme, themeMode)}" data-auto-light="${AUTO_LIGHT_THEME}" data-auto-dark="${AUTO_DARK_THEME}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Catbox — free image hosting</title>
   <meta name="description" content="Upload an image and get a permanent link. The cutest free file host you have ever seen.">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-${preconnect}${vendorStylesheets}${vendorStylesheets ? '\n' : ''}  <link rel="stylesheet" href="/css/app.css">
+${preconnect}${vendorStylesheets}${vendorStylesheets ? '\n' : ''}${initScript}
+  <link rel="stylesheet" href="/css/app.css">
   <link rel="stylesheet" href="/css/themes.css">
 </head>
 <body>
@@ -188,18 +238,23 @@ ${themeOptions}
 }
 
 /** Render the minimal HTML page shown after a no-JavaScript upload. */
-export function renderUploadResult(url: string, name: string, theme: Theme): string {
+export function renderUploadResult(
+  url: string,
+  name: string,
+  theme: Theme,
+  themeMode: ThemeMode,
+): string {
   const safeUrl = escapeHtml(url);
   const formats = buildCopyFormats(url, name);
   // The result page is themed too, so it has to load the theme's vendor
   // stylesheets exactly like renderHome does. Without them the Bootstrap
   // theme silently drops every `--bs-*` variable and every Bootstrap
   // component class on this page.
-  const preconnect =
-    theme.stylesheets.length > 0
-      ? `  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>\n`
-      : '';
-  const vendorStylesheets = renderVendorStylesheets(theme);
+  const {
+    preconnect,
+    stylesheets: vendorStylesheets,
+    initScript,
+  } = renderThemeStyles(theme, themeMode);
   const rows = (['link', 'markdown', 'html', 'bbcode'] as const)
     .map(
       (key) => `        <div class="cb-copy-static">
@@ -210,13 +265,14 @@ export function renderUploadResult(url: string, name: string, theme: Theme): str
     .join('\n');
 
   return `<!DOCTYPE html>
-<html lang="en" data-theme="${escapeHtml(theme.id)}">
+<html lang="en" data-theme="${escapeHtml(theme.id)}" data-theme-mode="${themeMode}" data-bs-theme="${bootstrapColorMode(theme, themeMode)}" data-auto-light="${AUTO_LIGHT_THEME}" data-auto-dark="${AUTO_DARK_THEME}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Catbox — upload complete</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  ${preconnect}${vendorStylesheets}${vendorStylesheets ? '\n' : ''}  <link rel="stylesheet" href="/css/app.css">
+  ${preconnect}${vendorStylesheets}${vendorStylesheets ? '\n' : ''}${initScript}
+  <link rel="stylesheet" href="/css/app.css">
   <link rel="stylesheet" href="/css/themes.css">
 </head>
 <body>

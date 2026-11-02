@@ -2,12 +2,25 @@
  * Theme registry.
  *
  * A theme is a set of CSS custom properties plus optional vendor stylesheets.
- * The Worker renders the markup with the active theme already applied, so the
- * first paint is correct and no flash-of-wrong-theme occurs.
+ * In manual mode the Worker renders the markup with the active theme already
+ * applied. In auto mode a small pre-paint script applies the browser's
+ * light/dark preference before the stylesheets are parsed.
  */
 
 /** Theme identifier persisted in the `catbox_theme` cookie. */
 export type ThemeId = 'classic' | 'dark' | 'bootstrap';
+
+/**
+ * How the active theme was chosen: an explicit theme cookie, or the browser's
+ * `prefers-color-scheme` preference (light = classic, dark = bootstrap).
+ */
+export type ThemeMode = 'auto' | 'manual';
+
+/** Theme used when the browser prefers a light color scheme. */
+export const AUTO_LIGHT_THEME: ThemeId = 'classic';
+
+/** Theme used when the browser prefers a dark color scheme. */
+export const AUTO_DARK_THEME: ThemeId = 'bootstrap';
 
 export interface Theme {
   /** Stable identifier, also used in the cookie and the `?theme=` query. */
@@ -49,8 +62,8 @@ export const THEMES: readonly Theme[] = [
   },
   {
     id: 'bootstrap',
-    label: 'Bootstrap',
-    description: 'Powered by Bootstrap 5.',
+    label: 'Bootstrap (dark)',
+    description: 'Bootstrap 5 in dark mode.',
     stylesheets: [BOOTSTRAP_CSS],
     integrity: [BOOTSTRAP_SRI],
   },

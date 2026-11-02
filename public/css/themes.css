@@ -5,6 +5,7 @@
 /* --------------------------------------------------------------- classic */
 
 :root[data-theme="classic"] {
+  color-scheme: light;
   --cb-bg: #cce8ed;
   --cb-surface: #ffffff;
   --cb-fg: #142c3c;
@@ -25,6 +26,7 @@
 /* ------------------------------------------------------------------ dark */
 
 :root[data-theme="dark"] {
+  color-scheme: dark;
   --cb-bg: #12161d;
   --cb-surface: #1b212b;
   --cb-fg: #e8edf4;
@@ -45,29 +47,30 @@
 /* -------------------------------------------------------------- bootstrap */
 
 :root[data-theme="bootstrap"] {
-  --cb-bg: var(--bs-body-bg, #ffffff);
-  --cb-surface: var(--bs-body-bg, #ffffff);
-  --cb-fg: var(--bs-body-color, #212529);
-  --cb-muted: var(--bs-secondary-color, #6c757d);
-  --cb-border: var(--bs-border-color, #dee2e6);
+  color-scheme: dark;
+  --cb-bg: var(--bs-body-bg, #212529);
+  --cb-surface: var(--bs-body-bg, #212529);
+  --cb-fg: var(--bs-body-color, #dee2e6);
+  --cb-muted: var(--bs-secondary-color, rgba(222, 226, 230, 0.75));
+  --cb-border: var(--bs-border-color, #495057);
   --cb-accent: var(--bs-primary, #0d6efd);
   --cb-accent-hover: var(--bs-primary-hover, #0b5ed7);
   --cb-accent-contrast: var(--bs-primary-contrast-foreground, #ffffff);
-  --cb-dropzone-bg: var(--bs-tertiary-bg, #f8f9fa);
-  --cb-dropzone-bg-hover: var(--bs-secondary-bg, #e9ecef);
-  --cb-btn-hover-bg: var(--bs-tertiary-bg, #f8f9fa);
-  --cb-code-bg: var(--bs-tertiary-bg, #f8f9fa);
-  --cb-danger-bg: var(--bs-danger-bg-subtle, #f8d7da);
-  --cb-danger-fg: var(--bs-danger-text-emphasis, #842029);
-  --cb-danger-border: var(--bs-danger-border-subtle, #f1aeb5);
+  --cb-dropzone-bg: var(--bs-tertiary-bg, #2b3035);
+  --cb-dropzone-bg-hover: var(--bs-secondary-bg, #343a40);
+  --cb-btn-hover-bg: var(--bs-tertiary-bg, #2b3035);
+  --cb-code-bg: var(--bs-tertiary-bg, #2b3035);
+  --cb-danger-bg: var(--bs-danger-bg-subtle, #2c0b0e);
+  --cb-danger-fg: var(--bs-danger-text-emphasis, #ea868f);
+  --cb-danger-border: var(--bs-danger-border-subtle, #842029);
 }
 
 /* The Bootstrap theme leans on Bootstrap's own radius, shadow and focus
    ring so the page reads as a stock Bootstrap 5 application. */
 
 :root[data-theme="bootstrap"] body {
-  background: var(--bs-body-bg, #ffffff);
-  color: var(--bs-body-color, #212529);
+  background: var(--bs-body-bg, #212529);
+  color: var(--bs-body-color, #dee2e6);
   font-family: var(--bs-body-font-family, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
 }
 

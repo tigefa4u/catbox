@@ -1009,10 +1009,15 @@
   var themeSelect = document.querySelector('[data-theme-select]');
   if (themeSelect) {
     themeSelect.addEventListener('change', function () {
-      document.cookie =
-        'catbox_theme=' +
-        encodeURIComponent(themeSelect.value) +
-        '; path=/; max-age=31536000; samesite=lax';
+      if (themeSelect.value === 'auto') {
+        // Clearing the cookie puts the page back into system-auto mode.
+        document.cookie = 'catbox_theme=; path=/; max-age=0; samesite=lax';
+      } else {
+        document.cookie =
+          'catbox_theme=' +
+          encodeURIComponent(themeSelect.value) +
+          '; path=/; max-age=31536000; samesite=lax';
+      }
       window.location.assign('/');
     });
   }

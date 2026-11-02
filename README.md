@@ -9,7 +9,7 @@ Catbox is a lightweight image-hosting service built with [Cloudflare Workers](ht
 - PNG, JPEG, GIF, WebP, AVIF, and SVG support.
 - A 10 MiB upload limit and server-side file-format detection.
 - Copyable direct-link, Markdown, HTML, and BBCode formats.
-- Classic, dark, and Bootstrap themes.
+- Classic (light), Dark, and Bootstrap (dark) themes, plus automatic light/dark selection from the browser preference.
 - Images stored in R2 and served with long-lived caching.
 - A JSON upload API with CORS enabled.
 
@@ -66,9 +66,15 @@ Uploads are limited to 120 per minute per client and Cloudflare location; excess
 
 | Method | Path | Description |
 | --- | --- | --- |
-| `GET` | `/` | Image upload interface. Use `?theme=classic`, `?theme=dark`, or `?theme=bootstrap` to select a theme. |
+| `GET` | `/` | Image upload interface. Use `?theme=classic`, `?theme=dark`, or `?theme=bootstrap` to select a theme, or `?theme=auto` to follow the browser preference. |
 | `POST` | `/upload` | Upload an image as multipart form data. |
 | `GET` | `/:filename` | Retrieve an uploaded image. |
+
+## Themes
+
+The theme follows the browser by default: a light color scheme uses **Classic**, and a dark one uses **Bootstrap (dark)**. The choice is applied before first paint and updates if the operating system switches while the page is open.
+
+Choosing a theme from the switcher stores it in the `catbox_theme` cookie and overrides the system preference. Select **Auto (system)** to clear the cookie and follow the browser again.
 
 ## Type checking
 

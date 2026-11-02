@@ -11,7 +11,7 @@
         "--channel=stable"
       ]
     },
-    "cloudflare-docs": {
+    "cloudflare": {
       "type": "http",
       "url": "https://mcp.cloudflare.com/mcp",
       "auth": {
@@ -24,6 +24,14 @@
       "oauth": {
         "clientId": "ceM-HDkcXhYdTpLH"
       }
+    },
+    "cloudflare-docs": {
+      "type": "http",
+      "url": "https://docs.mcp.cloudflare.com/mcp"
+    },
+    "cloudflare-blog": {
+      "type": "http",
+      "url": "https://blog.mcp.cloudflare.com/mcp"
     }
   }
 }
