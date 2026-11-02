@@ -11,7 +11,6 @@ import {
 } from './image';
 import {
   AUTO_LIGHT_THEME,
-  THEMES,
   THEME_COOKIE,
   getTheme,
   isThemeId,
@@ -184,7 +183,6 @@ app.get('/', (c) => {
   const theme = getTheme(cookieTheme ?? AUTO_LIGHT_THEME);
   const html = renderHome({
     theme,
-    themes: THEMES,
     origin: new URL(c.req.url).origin,
     themeMode,
   });

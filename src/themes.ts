@@ -25,10 +25,6 @@ export const AUTO_DARK_THEME: ThemeId = 'bootstrap';
 export interface Theme {
   /** Stable identifier, also used in the cookie and the `?theme=` query. */
   id: ThemeId;
-  /** Human readable name shown in the theme switcher. */
-  label: string;
-  /** Short description shown under the label. */
-  description: string;
   /** Vendor stylesheets that must be loaded for this theme. */
   stylesheets: string[];
   /** `integrity` hashes for the vendor stylesheets, in the same order. */
@@ -48,22 +44,16 @@ const BOOTSTRAP_SRI =
 export const THEMES: readonly Theme[] = [
   {
     id: 'classic',
-    label: 'Classic',
-    description: 'The original Catbox look.',
     stylesheets: [],
     integrity: [],
   },
   {
     id: 'dark',
-    label: 'Dark',
-    description: 'Late night, low light.',
     stylesheets: [],
     integrity: [],
   },
   {
     id: 'bootstrap',
-    label: 'Bootstrap (dark)',
-    description: 'Bootstrap 5 in dark mode.',
     stylesheets: [BOOTSTRAP_CSS],
     integrity: [BOOTSTRAP_SRI],
   },

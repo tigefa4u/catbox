@@ -1003,21 +1003,52 @@
   if (copyAllButton) copyAllButton.addEventListener('click', copyAll);
   if (clearButton) clearButton.addEventListener('click', clearFinished);
 
-  /* Theme switching: persist the choice, then load the canonical URL so the
-     server renders the matching stylesheets (the Bootstrap theme pulls in a
-     vendor CSS file). */
-  var themeSelect = document.querySelector('[data-theme-select]');
-  if (themeSelect) {
-    themeSelect.addEventListener('change', function () {
-      if (themeSelect.value === 'auto') {
-        // Clearing the cookie puts the page back into system-auto mode.
-        document.cookie = 'catbox_theme=; path=/; max-age=0; samesite=lax';
-      } else {
-        document.cookie =
-          'catbox_theme=' +
-          encodeURIComponent(themeSelect.value) +
-          '; path=/; max-age=31536000; samesite=lax';
+  /* Theme toggle: switch between Classic (light) and Bootstrap (dark). The
+     link also works without JavaScript through the server's `?theme=` setter;
+     this handler persists the opposite theme and reloads in place. */
+  var themeToggle = document.querySelector('[data-theme-toggle]');
+  if (themeToggle) {
+    var themeRoot = document.documentElement;
+    var themeMedia = window.matchMedia
+      ? window.matchMedia('(prefers-color-scheme: dark)')
+      : null;
+
+    var isDarkTheme = function () {
+      var theme = themeRoot.getAttribute('data-theme');
+      return theme === 'dark' || theme === 'bootstrap';
+    };
+
+    // Keep the href and accessible name correct for the current mode; in auto
+    // mode this also runs whenever the operating system preference changes.
+    var syncThemeToggle = function () {
+      var dark = isDarkTheme();
+      themeToggle.href = dark ? '/?theme=classic' : '/?theme=bootstrap';
+      themeToggle.setAttribute(
+        'aria-label',
+        dark ? 'Switch to light theme' : 'Switch to dark theme',
+      );
+    };
+
+    syncThemeToggle();
+
+    if (themeMedia && themeRoot.getAttribute('data-theme-mode') === 'auto') {
+      if (typeof themeMedia.addEventListener === 'function') {
+        themeMedia.addEventListener('change', syncThemeToggle);
+      } else if (typeof themeMedia.addListener === 'function') {
+        themeMedia.addListener(syncThemeToggle);
       }
+    }
+
+    themeToggle.addEventListener('click', function (event) {
+      // Let modified clicks open the already-correct href in a new tab.
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      if (typeof event.button === 'number' && event.button !== 0) return;
+
+      event.preventDefault();
+
+      var nextTheme = isDarkTheme() ? 'classic' : 'bootstrap';
+      document.cookie =
+        'catbox_theme=' + nextTheme + '; path=/; max-age=31536000; samesite=lax';
       window.location.assign('/');
     });
   }

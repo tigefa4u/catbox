@@ -63,8 +63,6 @@ function renderThemeStyles(
 export interface HomeOptions {
   /** Theme to render the page with. */
   theme: Theme;
-  /** All themes, used to populate the switcher. */
-  themes: readonly Theme[];
   /** Absolute origin of the request, used in the API example. */
   origin: string;
   /** Whether the theme follows the system preference or an explicit choice. */
@@ -72,16 +70,9 @@ export interface HomeOptions {
 }
 
 /** Render the upload page. */
-export function renderHome({ theme, themes, origin, themeMode }: HomeOptions): string {
-  const autoSelected = themeMode === 'auto' ? ' selected' : '';
-  const themeOptions =
-    `        <option value="auto"${autoSelected}>Auto (system)</option>\n` +
-    themes
-      .map(
-        (candidate) =>
-          `        <option value="${escapeHtml(candidate.id)}"${themeMode === 'manual' && candidate.id === theme.id ? ' selected' : ''}>${escapeHtml(candidate.label)}</option>`,
-      )
-      .join('\n');
+export function renderHome({ theme, origin, themeMode }: HomeOptions): string {
+  const isDark = theme.id === 'dark' || theme.id === 'bootstrap';
+  const toggleHref = isDark ? '/?theme=classic' : '/?theme=bootstrap';
 
   const {
     preconnect,
@@ -116,13 +107,15 @@ ${preconnect}${vendorStylesheets}${vendorStylesheets ? '\n' : ''}${initScript}
           <p class="cb-tagline">The cutest free file host you've ever seen.</p>
         </div>
       </div>
-      <form class="cb-theme-form" method="get" action="/">
-        <label class="cb-theme-label" for="cb-theme">Theme</label>
-        <select class="cb-select" id="cb-theme" name="theme" data-theme-select>
-${themeOptions}
-        </select>
-        <noscript><button class="cb-btn" type="submit">Apply</button></noscript>
-      </form>
+      <a class="cb-theme-toggle" href="${toggleHref}" data-theme-toggle title="Toggle theme" aria-label="Toggle theme">
+        <svg class="cb-theme-icon cb-theme-icon-moon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="currentColor"/>
+        </svg>
+        <svg class="cb-theme-icon cb-theme-icon-sun" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/>
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </a>
     </header>
 
     <main>

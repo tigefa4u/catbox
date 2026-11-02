@@ -83,15 +83,49 @@ main {
   color: var(--cb-muted);
 }
 
-.cb-theme-form {
-  display: flex;
+.cb-theme-toggle {
+  display: inline-flex;
+  flex: none;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-left: auto;
+  color: var(--cb-fg);
+  background: var(--cb-surface);
+  border: 2px solid var(--cb-border);
+  border-radius: var(--cb-radius-sm);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 150ms linear;
 }
 
-.cb-theme-label {
-  font-size: 0.85rem;
-  color: var(--cb-muted);
+.cb-theme-toggle:hover {
+  background: var(--cb-btn-hover-bg);
+}
+
+.cb-theme-toggle:focus-visible {
+  outline: 3px solid var(--cb-accent);
+  outline-offset: 2px;
+}
+
+.cb-theme-icon {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.cb-theme-icon-sun {
+  display: none;
+}
+
+:root[data-theme="dark"] .cb-theme-icon-moon,
+:root[data-theme="bootstrap"] .cb-theme-icon-moon {
+  display: none;
+}
+
+:root[data-theme="dark"] .cb-theme-icon-sun,
+:root[data-theme="bootstrap"] .cb-theme-icon-sun {
+  display: block;
 }
 
 .cb-select {
