@@ -12,6 +12,7 @@ Catbox is a lightweight image-hosting service built with [Cloudflare Workers](ht
 - One-click light/dark theme toggle: Classic (light) and Bootstrap (dark), following the browser preference on first visit.
 - Images stored in R2 and served with long-lived caching.
 - Missing image URLs return the bundled Catbox logo instead of a plain 404.
+- Open Graph and Twitter Card link previews with a Catbox logo image.
 - A JSON upload API with CORS enabled.
 
 ## Requirements
@@ -76,6 +77,12 @@ Uploads are limited to 120 per minute per client and Cloudflare location; excess
 A request for a valid image key that is not stored in R2 returns the bundled Catbox logo at `/default-image.png` with **200 OK** instead of a plain 404. This keeps broken or deleted image embeds showing the Catbox branding.
 
 The logo is a static asset, so the fallback works on a fresh deployment and in local development with an empty R2 bucket. Fallback responses are cached for five minutes, allowing a later upload at the same key to take over. Non-image paths continue to return 404.
+
+## Social previews
+
+The home page includes Open Graph and Twitter Card metadata. Link previews on Discord, Slack, X, and similar services use `/og-image.png` (1200×630) with the Catbox logo.
+
+If Discord keeps showing an older preview, re-post the URL or add a query string to bypass its cache.
 
 ## Themes
 

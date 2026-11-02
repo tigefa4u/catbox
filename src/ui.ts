@@ -9,6 +9,13 @@ import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL, UPLOAD_FIELD_NAME } from './constan
 import { SUPPORTED_FORMATS_LABEL } from './image';
 import { buildCopyFormats, escapeHtml } from './format';
 
+const SITE_NAME = 'Catbox';
+const SITE_TITLE = 'Catbox — free image hosting';
+const SITE_DESCRIPTION =
+  'Upload an image and get a permanent link. The cutest free file host you have ever seen.';
+const OG_IMAGE_WIDTH = 1200;
+const OG_IMAGE_HEIGHT = 630;
+
 /**
  * Render the `<link>` tags for a theme's vendor stylesheets. A `media` value
  * is attached when the stylesheet is only a candidate (auto mode), and the
@@ -73,6 +80,8 @@ export interface HomeOptions {
 export function renderHome({ theme, origin, themeMode }: HomeOptions): string {
   const isDark = theme.id === 'dark' || theme.id === 'bootstrap';
   const toggleHref = isDark ? '/?theme=classic' : '/?theme=bootstrap';
+  const pageUrl = `${origin}/`;
+  const ogImageUrl = `${origin}/og-image.png`;
 
   const {
     preconnect,
@@ -85,8 +94,26 @@ export function renderHome({ theme, origin, themeMode }: HomeOptions): string {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Catbox — free image hosting</title>
-  <meta name="description" content="Upload an image and get a permanent link. The cutest free file host you have ever seen.">
+  <title>${SITE_TITLE}</title>
+  <meta name="description" content="${SITE_DESCRIPTION}">
+  <meta name="theme-color" content="#cce8ed">
+  <link rel="canonical" href="${escapeHtml(pageUrl)}">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="${SITE_NAME}">
+  <meta property="og:title" content="${SITE_TITLE}">
+  <meta property="og:description" content="${SITE_DESCRIPTION}">
+  <meta property="og:url" content="${escapeHtml(pageUrl)}">
+  <meta property="og:image" content="${escapeHtml(ogImageUrl)}">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:width" content="${OG_IMAGE_WIDTH}">
+  <meta property="og:image:height" content="${OG_IMAGE_HEIGHT}">
+  <meta property="og:image:alt" content="Catbox logo and wordmark">
+  <meta property="og:locale" content="en_US">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${SITE_TITLE}">
+  <meta name="twitter:description" content="${SITE_DESCRIPTION}">
+  <meta name="twitter:image" content="${escapeHtml(ogImageUrl)}">
+  <meta name="twitter:image:alt" content="Catbox logo and wordmark">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 ${preconnect}${vendorStylesheets}${vendorStylesheets ? '\n' : ''}${initScript}
   <link rel="stylesheet" href="/css/app.css">
