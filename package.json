@@ -10,7 +10,7 @@
     "typecheck": "npm run cf-typegen && tsc --noEmit"
   },
   "dependencies": {
-    "hono": "^4.13.14"
+    "hono": "^4.13.16"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
