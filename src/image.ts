@@ -102,7 +102,7 @@ export function detectImageFormat(head: Uint8Array): ImageFormat | null {
     .decode(head.subarray(0, Math.min(head.length, SNIFF_LENGTH)))
     .trimStart()
     .toLowerCase();
-  if (text.includes('<svg ') && text.includes('xmlns')) return 'svg';
+  if ((text.includes('<svg>') || text.includes('<svg\n') || text.includes('<svg\r') || text.includes('<svg\t') || text.includes('<svg ')) && text.includes('xmlns')) return 'svg';
 
   return null;
 }

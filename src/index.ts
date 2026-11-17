@@ -150,8 +150,8 @@ async function parseUpload(request: Request): Promise<UploadParseResult> {
 /** Static Catbox logo served when an image key is missing from R2. */
 const DEFAULT_IMAGE_PATH = '/default-image.png';
 
-/** Canonical uploaded-image keys: seven characters plus a supported extension. */
-const IMAGE_KEY_PATTERN = /^[a-z0-9]{7}\.(png|jpe?g|gif|webp|avif|svg)$/i;
+/** Canonical uploaded-image keys: seven or eleven characters plus a supported extension. */
+const IMAGE_KEY_PATTERN = /^[a-z0-9]{7,11}\.(png|jpe?g|gif|webp|avif|svg)$/i;
 
 /**
  * Serve the bundled Catbox logo for a missing image key.
@@ -295,30 +295,22 @@ app.post('/upload', async (c) => {
     const extension = FORMAT_EXTENSIONS[format];
     const contentType = FORMAT_MIME_TYPES[format];
 
-    // 3. Store in R2 with conditional write: abort if key already exists.
+    // 3. Store in R2: check if key exists first, then put.
     //    Retry up to 5 times with a new random key on conflict.
     let key = '';
-    let conflict = false;
     for (let attempt = 0; attempt < 5; attempt++) {
       key = `${generateId(11)}${extension}`;
-      try {
-        await c.env.IMAGES.put(key, file.stream(), {
-          httpMetadata: {
-            contentType,
-            cacheControl: 'public, max-age=31536000, immutable',
-          },
-        });
-        conflict = false;
-        break;
-      } catch (err) {
-        if (err instanceof Error && err.message.includes('409')) {
-          conflict = true;
-          continue;
-        }
-        throw err;
-      }
+      const existing = await c.env.IMAGES.get(key);
+      if (existing) continue;
+      await c.env.IMAGES.put(key, file.stream(), {
+        httpMetadata: {
+          contentType,
+          cacheControl: 'public, max-age=31536000, immutable',
+        },
+      });
+      break;
     }
-    if (conflict) {
+    if (!key) {
       return c.json(
         {
           error: 'Upload failed. Too many key collisions — please try again.',
