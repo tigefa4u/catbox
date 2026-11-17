@@ -83,13 +83,36 @@ export function detectImageFormat(head: Uint8Array): ImageFormat | null {
   if (head.length === 0) return null;
 
   if (startsWith(head, PNG_SIGNATURE)) {
-    // Verify IHDR chunk type at offset 12 (4 bytes length + 4 bytes type)
-    if (startsWith(head, PNG_IHDR, 12)) return 'png';
+    // Verify IHDR chunk type at offset 12 (4 bytes length + 4 bytes type) and
+    // that the file has at least enough bytes for a complete IHDR chunk (13 bytes
+    // data + 4 bytes CRC) after the marker — 25 bytes total following IHDR.
+    if (startsWith(head, PNG_IHDR, 12) && head.length >= 33) return 'png';
   }
-  // JPEG needs at least 20 bytes: SOI + APP0 header (minimum structure).
-  if (startsWith(head, JPEG_SIGNATURE) && head.length >= 20) return 'jpeg';
-  // GIF needs at least 13 bytes: signature + header + GCT/minor struct.
-  if ((startsWith(head, GIF87_SIGNATURE) || startsWith(head, GIF89_SIGNATURE)) && head.length >= 13) return 'gif';
+  // JPEG: SOI + APP0 header with JFIF signature, plus a valid SOF0 (Start of Frame) marker.
+  // APP0 is 2+4+5+1 = 12 bytes; SOF0 marker + length = 4 bytes minimum.
+  if (startsWith(head, JPEG_SIGNATURE) && head.length >= 12) {
+    // Verify APP0 marker (FF E0) after SOI
+    if (head.length >= 12 && head[3] === 0xff && head[4] === 0xe0 && head[5] === 0x4a && head[6] === 0x46 && head[7] === 0x49 && head[8] === 0x46 && head[9] === 0x00) {
+      // Verify SOF0 marker (FF C0) exists within head — ensures valid image structure
+      for (let i = 12; i < head.length - 1; i++) {
+        if (head[i] === 0xff && head[i + 1] === 0xc0) {
+          return 'jpeg';
+        }
+      }
+    }
+  }
+  // GIF: signature + logical screen descriptor (10 bytes) + image descriptor (10 bytes) + image data.
+  // Need at least 20 bytes for a minimal valid GIF with an image block.
+  if ((startsWith(head, GIF87_SIGNATURE) || startsWith(head, GIF89_SIGNATURE)) && head.length >= 22) {
+    // Validate logical screen descriptor (10 bytes after signature) + image descriptor (0x2c).
+    // LSD is at offset 6-15 (after 6-byte signature). Byte 10 = GCT flag + size.
+    const b10 = head[10]!;
+    const hasGCT = (b10 & 0x80) !== 0;
+    const gctSize = hasGCT ? Math.pow(2, (b10 & 0x07) + 1) * 3 : 0;
+    const idOffset = 10 + gctSize;
+    const imgByte = head[idOffset]!;
+    if (idOffset + 10 <= head.length && imgByte === 0x2c) return 'gif';
+  }
 
   // RIFF....WEBP
   if (startsWith(head, RIFF_SIGNATURE) && startsWith(head, WEBP_SIGNATURE, 8)) return 'webp';
@@ -109,13 +132,14 @@ export function detectImageFormat(head: Uint8Array): ImageFormat | null {
     .toLowerCase();
 
   // Find the <svg tag and check if it has the official SVG namespace.
+  // Tolerate whitespace around the = sign and between xmlns and =.
   const svgTagMatch = text.match(/<svg[\s>][^>]*>/);
   if (svgTagMatch) {
     const svgTag = svgTagMatch[0];
-    const hasNs = svgTag.includes('xmlns="http://www.w3.org/2000/svg"') ||
-                  svgTag.includes("xmlns='http://www.w3.org/2000/svg'") ||
-                  svgTag.includes('xmlns:xlink="http://www.w3.org/2000/svg"') ||
-                  svgTag.includes("xmlns:xlink='http://www.w3.org/2000/svg'");
+    // Tolerate whitespace around = and between xmlns and =
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const hasNs = (svgTag.match(/xmlns\s*=\s*["'](.*?)["']/)?.[1] === svgNS ||
+                  svgTag.match(/xmlns:([^'"\s]*)\s*=\s*["'](.*?)["']/)?.[2] === svgNS);
     if (hasNs) return 'svg';
   }
 
