@@ -86,8 +86,10 @@ export function detectImageFormat(head: Uint8Array): ImageFormat | null {
     // Verify IHDR chunk type at offset 12 (4 bytes length + 4 bytes type)
     if (startsWith(head, PNG_IHDR, 12)) return 'png';
   }
-  if (startsWith(head, JPEG_SIGNATURE)) return 'jpeg';
-  if (startsWith(head, GIF87_SIGNATURE) || startsWith(head, GIF89_SIGNATURE)) return 'gif';
+  // JPEG needs at least 20 bytes: SOI + APP0 header (minimum structure).
+  if (startsWith(head, JPEG_SIGNATURE) && head.length >= 20) return 'jpeg';
+  // GIF needs at least 13 bytes: signature + header + GCT/minor struct.
+  if ((startsWith(head, GIF87_SIGNATURE) || startsWith(head, GIF89_SIGNATURE)) && head.length >= 13) return 'gif';
 
   // RIFF....WEBP
   if (startsWith(head, RIFF_SIGNATURE) && startsWith(head, WEBP_SIGNATURE, 8)) return 'webp';
@@ -99,19 +101,23 @@ export function detectImageFormat(head: Uint8Array): ImageFormat | null {
   }
 
   // SVG is text: it may start with an XML declaration, a comment or the root
-  // element itself. Require an xmlns attribute to confirm it's a real SVG
-  // namespace rather than a substring match on any text containing `<svg`.
-
+  // element itself. Require the svg root tag with an xmlns attribute pointing
+  // to the official SVG namespace.
   const text = new TextDecoder()
     .decode(head.subarray(0, Math.min(head.length, SNIFF_LENGTH)))
     .trimStart()
     .toLowerCase();
-  // Require the official SVG namespace: xmlns="http://www.w3.org/2000/svg"
-  // or xmlns='http://www.w3.org/2000/svg'
-  if (
-    (text.includes('<svg>') || text.includes('<svg\n') || text.includes('<svg\r') || text.includes('<svg\t') || text.includes('<svg ')) &&
-    text.includes('http://www.w3.org/2000/svg')
-  ) return 'svg';
+
+  // Find the <svg tag and check if it has the official SVG namespace.
+  const svgTagMatch = text.match(/<svg[\s>][^>]*>/);
+  if (svgTagMatch) {
+    const svgTag = svgTagMatch[0];
+    const hasNs = svgTag.includes('xmlns="http://www.w3.org/2000/svg"') ||
+                  svgTag.includes("xmlns='http://www.w3.org/2000/svg'") ||
+                  svgTag.includes('xmlns:xlink="http://www.w3.org/2000/svg"') ||
+                  svgTag.includes("xmlns:xlink='http://www.w3.org/2000/svg'");
+    if (hasNs) return 'svg';
+  }
 
   return null;
 }

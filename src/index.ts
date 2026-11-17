@@ -295,9 +295,9 @@ app.post('/upload', async (c) => {
     const extension = FORMAT_EXTENSIONS[format];
     const contentType = FORMAT_MIME_TYPES[format];
 
-    // 3. Store in R2 with atomic create-only: onlyIf.keyNotExists=true rejects
-    //    writes when the key already exists. R2 returns null on failure rather
-    //    than throwing, so we check the result and retry with a new key.
+    // 3. Store in R2 with atomic create-only: onlyIf.etagDoesNotMatch='*'
+    //    ensures nothing with this key exists. R2 returns null on failure
+    //    rather than throwing, so we check the result and retry.
     let key = '';
     let stored = false;
     for (let attempt = 0; attempt < 5; attempt++) {
@@ -310,8 +310,8 @@ app.post('/upload', async (c) => {
             contentType,
             cacheControl: 'public, max-age=31536000, immutable',
           },
-          onlyIf: { keyNotExists: true },
-        } as Parameters<typeof c.env.IMAGES.put>[2],
+          onlyIf: { etagDoesNotMatch: '*' },
+        },
       );
       // result is truthy (R2Object) on success, null on precondition failure
       if (result) {
