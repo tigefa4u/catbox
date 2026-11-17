@@ -47,6 +47,7 @@ export const SUPPORTED_FORMATS_LABEL = 'PNG, JPEG, GIF, WebP, AVIF or SVG';
 export const SNIFF_LENGTH = 512;
 
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+const PNG_IHDR = [0x49, 0x48, 0x44, 0x52];  // IHDR chunk type
 const JPEG_SIGNATURE = [0xff, 0xd8, 0xff];
 const GIF87_SIGNATURE = [0x47, 0x49, 0x46, 0x38, 0x37, 0x61];
 const GIF89_SIGNATURE = [0x47, 0x49, 0x46, 0x38, 0x39, 0x61];
@@ -81,7 +82,10 @@ function readAscii(head: Uint8Array, offset: number): string {
 export function detectImageFormat(head: Uint8Array): ImageFormat | null {
   if (head.length === 0) return null;
 
-  if (startsWith(head, PNG_SIGNATURE)) return 'png';
+  if (startsWith(head, PNG_SIGNATURE)) {
+    // Verify IHDR chunk type at offset 12 (4 bytes length + 4 bytes type)
+    if (startsWith(head, PNG_IHDR, 12)) return 'png';
+  }
   if (startsWith(head, JPEG_SIGNATURE)) return 'jpeg';
   if (startsWith(head, GIF87_SIGNATURE) || startsWith(head, GIF89_SIGNATURE)) return 'gif';
 
@@ -102,7 +106,12 @@ export function detectImageFormat(head: Uint8Array): ImageFormat | null {
     .decode(head.subarray(0, Math.min(head.length, SNIFF_LENGTH)))
     .trimStart()
     .toLowerCase();
-  if ((text.includes('<svg>') || text.includes('<svg\n') || text.includes('<svg\r') || text.includes('<svg\t') || text.includes('<svg ')) && text.includes('xmlns')) return 'svg';
+  // Require the official SVG namespace: xmlns="http://www.w3.org/2000/svg"
+  // or xmlns='http://www.w3.org/2000/svg'
+  if (
+    (text.includes('<svg>') || text.includes('<svg\n') || text.includes('<svg\r') || text.includes('<svg\t') || text.includes('<svg ')) &&
+    text.includes('http://www.w3.org/2000/svg')
+  ) return 'svg';
 
   return null;
 }

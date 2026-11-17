@@ -295,22 +295,31 @@ app.post('/upload', async (c) => {
     const extension = FORMAT_EXTENSIONS[format];
     const contentType = FORMAT_MIME_TYPES[format];
 
-    // 3. Store in R2: check if key exists first, then put.
-    //    Retry up to 5 times with a new random key on conflict.
+    // 3. Store in R2 with atomic create-only: onlyIf.keyNotExists=true rejects
+    //    writes when the key already exists. R2 returns null on failure rather
+    //    than throwing, so we check the result and retry with a new key.
     let key = '';
+    let stored = false;
     for (let attempt = 0; attempt < 5; attempt++) {
       key = `${generateId(11)}${extension}`;
-      const existing = await c.env.IMAGES.get(key);
-      if (existing) continue;
-      await c.env.IMAGES.put(key, file.stream(), {
-        httpMetadata: {
-          contentType,
-          cacheControl: 'public, max-age=31536000, immutable',
-        },
-      });
-      break;
+      const result = await c.env.IMAGES.put(
+        key,
+        file.stream(),
+        {
+          httpMetadata: {
+            contentType,
+            cacheControl: 'public, max-age=31536000, immutable',
+          },
+          onlyIf: { keyNotExists: true },
+        } as Parameters<typeof c.env.IMAGES.put>[2],
+      );
+      // result is truthy (R2Object) on success, null on precondition failure
+      if (result) {
+        stored = true;
+        break;
+      }
     }
-    if (!key) {
+    if (!stored) {
       return c.json(
         {
           error: 'Upload failed. Too many key collisions — please try again.',
