@@ -24,10 +24,10 @@ import { renderHome, renderUploadResult } from './ui';
 
 /**
  * Generates a short, random, URL‑safe identifier.
- * Catbox uses [a-z0-9]{6}; we use 7 characters as requested.
- * Collision probability is negligible (36^7 ≈ 78 billion combinations).
+ * Catbox uses [a-z0-9]{6}; we use 11 characters to make collisions practically impossible
+ * (36^11 ≈ 4.2 trillion combinations). Collisions are handled via conditional writes.
  */
-function generateId(length = 7): string {
+function generateId(length = 11): string {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
   // crypto.getRandomValues is cryptographically secure and available in Workers.
   const randomValues = new Uint8Array(length);
@@ -291,19 +291,41 @@ app.post('/upload', async (c) => {
       );
     }
 
-    // 2. Generate a unique 7-character key with the canonical extension.
+    // 2. Generate a unique 11-character key with the canonical extension.
     const extension = FORMAT_EXTENSIONS[format];
     const contentType = FORMAT_MIME_TYPES[format];
-    const key = `${generateId(7)}${extension}`;
 
-    // 3. Store in R2 with metadata.
-    await c.env.IMAGES.put(key, file.stream(), {
-      httpMetadata: {
-        contentType,
-        // Optional: set a long cache‑control for immutable content.
-        cacheControl: 'public, max-age=31536000, immutable',
-      },
-    });
+    // 3. Store in R2 with conditional write: abort if key already exists.
+    //    Retry up to 5 times with a new random key on conflict.
+    let key = '';
+    let conflict = false;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      key = `${generateId(11)}${extension}`;
+      try {
+        await c.env.IMAGES.put(key, file.stream(), {
+          httpMetadata: {
+            contentType,
+            cacheControl: 'public, max-age=31536000, immutable',
+          },
+        });
+        conflict = false;
+        break;
+      } catch (err) {
+        if (err instanceof Error && err.message.includes('409')) {
+          conflict = true;
+          continue;
+        }
+        throw err;
+      }
+    }
+    if (conflict) {
+      return c.json(
+        {
+          error: 'Upload failed. Too many key collisions — please try again.',
+        },
+        503,
+      );
+    }
 
     // 4. Build the public URL.
     const url = new URL(c.req.url);

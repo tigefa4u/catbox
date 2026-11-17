@@ -95,13 +95,14 @@ export function detectImageFormat(head: Uint8Array): ImageFormat | null {
   }
 
   // SVG is text: it may start with an XML declaration, a comment or the root
-  // element itself.
+  // element itself. Require an xmlns attribute to confirm it's a real SVG
+  // namespace rather than a substring match on any text containing `<svg`.
+
   const text = new TextDecoder()
     .decode(head.subarray(0, Math.min(head.length, SNIFF_LENGTH)))
     .trimStart()
     .toLowerCase();
-
-  if (text.includes('<svg')) return 'svg';
+  if (text.includes('<svg ') && text.includes('xmlns')) return 'svg';
 
   return null;
 }

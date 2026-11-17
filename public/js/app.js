@@ -717,6 +717,9 @@
     updateSummary();
     updateOverallProgress();
     sendItem(next);
+    // Schedule another pump attempt to start the next upload in the next
+    // slot if we're still under MAX_CONCURRENT and there are more pending items.
+    schedulePump(0);
   }
 
   function retryDelay(item, xhr, baseMs) {
