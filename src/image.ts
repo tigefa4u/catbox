@@ -48,7 +48,6 @@ export const SNIFF_LENGTH = 512;
 
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const PNG_IHDR = [0x49, 0x48, 0x44, 0x52];  // IHDR chunk type
-const JPEG_SIGNATURE = [0xff, 0xd8, 0xff];
 const GIF87_SIGNATURE = [0x47, 0x49, 0x46, 0x38, 0x37, 0x61];
 const GIF89_SIGNATURE = [0x47, 0x49, 0x46, 0x38, 0x39, 0x61];
 const RIFF_SIGNATURE = [0x52, 0x49, 0x46, 0x46];
@@ -83,35 +82,50 @@ export function detectImageFormat(head: Uint8Array): ImageFormat | null {
   if (head.length === 0) return null;
 
   if (startsWith(head, PNG_SIGNATURE)) {
-    // Verify IHDR chunk type at offset 12 (4 bytes length + 4 bytes type) and
-    // that the file has at least enough bytes for a complete IHDR chunk (13 bytes
-    // data + 4 bytes CRC) after the marker — 25 bytes total following IHDR.
-    if (startsWith(head, PNG_IHDR, 12) && head.length >= 33) return 'png';
+    // Validate IHDR chunk: 4 bytes length + 4 bytes type + 13 bytes data + 4 bytes CRC.
+    // Chunk length at offset 8-11 must be 13 (0x0000000D), type at 12-15 must be IHDR.
+    if (head.length >= 33 &&
+        (head[8] === 0x00 && head[9] === 0x00 && head[10] === 0x00 && head[11] === 0x0d) &&
+        startsWith(head, PNG_IHDR, 12)) return 'png';
   }
-  // JPEG: SOI + APP0 header with JFIF signature, plus a valid SOF0 (Start of Frame) marker.
-  // APP0 is 2+4+5+1 = 12 bytes; SOF0 marker + length = 4 bytes minimum.
-  if (startsWith(head, JPEG_SIGNATURE) && head.length >= 12) {
-    // Verify APP0 marker (FF E0) after SOI
-    if (head.length >= 12 && head[3] === 0xff && head[4] === 0xe0 && head[5] === 0x4a && head[6] === 0x46 && head[7] === 0x49 && head[8] === 0x46 && head[9] === 0x00) {
-      // Verify SOF0 marker (FF C0) exists within head — ensures valid image structure
-      for (let i = 12; i < head.length - 1; i++) {
-        if (head[i] === 0xff && head[i + 1] === 0xc0) {
-          return 'jpeg';
-        }
-      }
+  // JPEG: verify SOI (FF D8) + scan segments for SOFx marker (FF C0-C3).
+  // Accept any JPEG with valid segment structure, regardless of APP0/JFIF/EXIF.
+  if (head.length >= 10 && head[0] === 0xff && head[1] === 0xd8) {
+    let offset = 2;
+    while (offset < head.length - 1) {
+      if (head[offset] !== 0xff) break;
+      if (head[offset + 1] === 0x00) { offset += 2; continue; } // stuffing
+      const marker = head[offset + 1]!;
+      if (marker >= 0xc0 && marker <= 0xc3) return 'jpeg'; // SOF0-SOF3
+      if (marker === 0xd9 || marker === 0xd8 || marker === 0xda || marker === 0xac) break;
+      if (offset + 3 >= head.length) break;
+      const segLen = (head[offset + 2]! << 8) | head[offset + 3]!;
+      if (segLen < 2) break;
+      offset += 2 + segLen;
     }
   }
-  // GIF: signature + logical screen descriptor (10 bytes) + image descriptor (10 bytes) + image data.
-  // Need at least 20 bytes for a minimal valid GIF with an image block.
+  // GIF: parse block sequence after LSD.  Extension blocks (0x21) may appear
+  // before the first image descriptor (0x2c).  Scan past them.
   if ((startsWith(head, GIF87_SIGNATURE) || startsWith(head, GIF89_SIGNATURE)) && head.length >= 22) {
-    // Validate logical screen descriptor (10 bytes after signature) + image descriptor (0x2c).
-    // LSD is at offset 6-15 (after 6-byte signature). Byte 10 = GCT flag + size.
     const b10 = head[10]!;
     const hasGCT = (b10 & 0x80) !== 0;
     const gctSize = hasGCT ? Math.pow(2, (b10 & 0x07) + 1) * 3 : 0;
-    const idOffset = 10 + gctSize;
-    const imgByte = head[idOffset]!;
-    if (idOffset + 10 <= head.length && imgByte === 0x2c) return 'gif';
+    let offset = 13 + gctSize; // LSD ends at 12, GCT starts at 13
+    while (offset < head.length) {
+      if (head[offset] === 0x3b) break; // trailer
+      if (head[offset] === 0x2c) return 'gif'; // image descriptor
+      if (head[offset] === 0x21) {
+        // Extension block: skip introducer + label + all sub-blocks.
+        offset += 2; // skip introducer (0x21) and label byte
+        while (offset < head.length) {
+          if (head[offset] === 0x00) { offset++; break; } // terminator → done
+          const subLen = head[offset]!;
+          offset += 1 + subLen; // skip size + data
+        }
+      } else {
+        break; // unexpected block
+      }
+    }
   }
 
   // RIFF....WEBP

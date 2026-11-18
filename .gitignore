@@ -6,4 +6,5 @@ agents.md.bak
 .DS_Store
 .env
 .env.dev
+REVIEW*.md
 
