@@ -97,11 +97,12 @@ export function detectImageFormat(head: Uint8Array): ImageFormat | null {
       while (offset < head.length - 8) {
         const chunkLen = (head[offset]! << 24) | (head[offset + 1]! << 16) | (head[offset + 2]! << 8) | head[offset + 3]!;
         if (chunkLen > 0xffffff || offset + 12 + chunkLen > head.length) break;
-        offset += 12 + chunkLen; // length(4) + type(4) + data + CRC(4)
-        if (startsWith(head, PNG_IEND, offset - 4)) {
+        // Check chunk type at this offset before advancing.
+        if (startsWith(head, PNG_IEND, offset + 4)) {
           hasIend = true;
           break;
         }
+        offset += 12 + chunkLen; // length(4) + type(4) + data + CRC(4)
       }
       if (hasIend) return 'png';
     }
@@ -123,11 +124,22 @@ export function detectImageFormat(head: Uint8Array): ImageFormat | null {
       if (marker === 0xd9) { // EOI
         return foundFrame ? 'jpeg' : null;
       }
-      if (marker === 0xd8 || marker === 0xda || marker === 0xac) break;
+      if (marker === 0xd8 || marker === 0xac) break;
+      if (marker === 0xda) { // SOS — compressed data follows, stop parsing segments
+        break;
+      }
       if (offset + 3 >= head.length) break;
       const segLen = (head[offset + 2]! << 8) | head[offset + 3]!;
       if (segLen < 2) break;
       offset += 2 + segLen;
+    }
+    // After SOS or RST, look for EOI in the remaining buffer.
+    if (foundFrame && offset < head.length - 1) {
+      for (let i = offset; i < head.length - 1; i++) {
+        if (head[i] === 0xff && head[i + 1] === 0xd9) {
+          return 'jpeg';
+        }
+      }
     }
   }
 
