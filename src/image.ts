@@ -98,13 +98,16 @@ export function detectImageFormat(head: Uint8Array): ImageFormat | null {
       // Try to find IEND within the sniff window.
       let offset = 8;
       while (offset < head.length - 8) {
-        const chunkLen = (head[offset]! << 24) | (head[offset + 1]! << 16) | (head[offset + 2]! << 8) | head[offset + 3]!;
+        if (offset + 8 >= head.length) break;  // need at least chunk length field
+        const chunkLen = ((head[offset]! & 0xff) << 24) | ((head[offset + 1]! & 0xff) << 16) | ((head[offset + 2]! & 0xff) << 8) | (head[offset + 3]! & 0xff);
         if (chunkLen > 0xffffff || offset + 12 + chunkLen > head.length) break;
         // Check chunk type at this offset before advancing.
         if (startsWith(head, PNG_IEND, offset + 4)) {
           return 'png'; // IEND found → definitely valid
         }
-        offset += 12 + chunkLen; // length(4) + type(4) + data + CRC(4)
+        const next = offset + 12 + chunkLen;
+        if (next <= offset) break;  // prevent infinite loop on malformed chunks
+        offset = next;
       }
       // IEND not in window but IHDR is valid → treat as PNG.
       return 'png';
@@ -164,9 +167,10 @@ export function detectImageFormat(head: Uint8Array): ImageFormat | null {
         // Extension block: skip introducer + label + all sub-blocks.
         offset += 2; // skip introducer and label
         while (offset < head.length) {
-          if (head[offset] === 0x00) { offset++; break; } // terminator
+          if (head[offset] === 0x00) { offset++; break; } // sub-block terminator
           const subLen = head[offset]!;
-          offset += 1 + subLen; // skip size + data
+          if (offset + 1 + subLen > head.length) break;  // don't skip past buffer with oversized metadata
+          offset += 1 + subLen;
         }
       } else {
         break; // unexpected block
@@ -193,14 +197,14 @@ export function detectImageFormat(head: Uint8Array): ImageFormat | null {
 
   // Match any tag whose local name is "svg" (possibly namespace-prefixed).
   const svgTagMatch = text.match(/<[^>]*?svg[\s>][^>]*>/);
-  if (svgTagMatch) {
-    const svgTag = svgTagMatch[0];
-    const svgNS = 'http://www.w3.org/2000/svg';
-    // Check ALL xmlns declarations for SVG namespace.
-    const hasDefaultNs = svgTag.match(/xmlns\s*=\s*["']([^"']*)["']/)?.[1] === svgNS;
-    const hasPrefixedNs = svgTag.match(/xmlns:([^'"\s]*)\s*=\s*["'](.*?)["']/)?.[2] === svgNS;
-    if (hasDefaultNs || hasPrefixedNs) return 'svg';
-  }
+  if (!svgTagMatch) return null;
+
+  const svgNS = 'http://www.w3.org/2000/svg';
+  // Search ALL xmlns declarations in the text, not just within the SVG tag,
+  // so declaration order doesn't affect detection.
+  const hasDefaultNs = /xmlns\s*=\s*["']([^"']*)["']/.test(text) && text.match(/xmlns\s*=\s*["']([^"']*)["']/)?.[1] === svgNS;
+  const hasPrefixedNs = /xmlns:([^'\s]*)\s*=\s*["'](.*?)["']/.test(text) && text.match(/xmlns:([^'\s]*)\s*=\s*["'](.*?)["']/)?.[2] === svgNS;
+  if (hasDefaultNs || hasPrefixedNs) return 'svg';
 
   return null;
 }
