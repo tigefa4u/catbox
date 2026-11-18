@@ -100,7 +100,7 @@ export function detectImageFormat(head: Uint8Array): ImageFormat | null {
       while (offset < head.length - 8) {
         const chunkLen = (head[offset]! << 24) | (head[offset + 1]! << 16) | (head[offset + 2]! << 8) | head[offset + 3]!;
         if (chunkLen > 0xffffff || offset + 12 + chunkLen > head.length) break;
-        // Check chunk type before advancing.
+        // Check chunk type at this offset before advancing.
         if (startsWith(head, PNG_IEND, offset + 4)) {
           return 'png'; // IEND found → definitely valid
         }
@@ -151,7 +151,7 @@ export function detectImageFormat(head: Uint8Array): ImageFormat | null {
       if (head[offset] === 0x2c) { // image descriptor
         foundImage = true;
         // Skip past image descriptor (9 bytes: x,y,w,h + flags, LZW min) and LZW sub-blocks.
-        offset += 9; // skip descriptor
+        offset += 9;
         if (offset < head.length) {
           while (offset < head.length) {
             const lzwSize = head[offset]!;
@@ -196,12 +196,10 @@ export function detectImageFormat(head: Uint8Array): ImageFormat | null {
   if (svgTagMatch) {
     const svgTag = svgTagMatch[0];
     const svgNS = 'http://www.w3.org/2000/svg';
-    // Check ALL xmlns declarations in the tag, not just the first.
-    const hasNs = svgTag.match(/xmlns\s*=\s*["'](.*?)["']/) !== null &&
-      (svgTag.match(/xmlns\s*=\s*["']([^"']*)["']/)?.[1] === svgNS ||
-       svgTag.match(/xmlns:([^'"\s]*)\s*=\s*["'](.*?)["']/) &&
-       svgTag.match(/xmlns:([^'"\s]*)\s*=\s*["'](.*?)["']/)![2] === svgNS);
-    if (hasNs) return 'svg';
+    // Check ALL xmlns declarations for SVG namespace.
+    const hasDefaultNs = svgTag.match(/xmlns\s*=\s*["']([^"']*)["']/)?.[1] === svgNS;
+    const hasPrefixedNs = svgTag.match(/xmlns:([^'"\s]*)\s*=\s*["'](.*?)["']/)?.[2] === svgNS;
+    if (hasDefaultNs || hasPrefixedNs) return 'svg';
   }
 
   return null;
