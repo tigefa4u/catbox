@@ -5,6 +5,11 @@ import { detectImageFormat } from '../src/image.ts';
 
 const fixture = (name) => readFileSync(new URL('./fixtures/' + name, import.meta.url));
 
+test('does not recognize an empty upload or unrelated binary data as an image', () => {
+  assert.equal(detectImageFormat(new Uint8Array()), null);
+  assert.equal(detectImageFormat(Uint8Array.of(0x00, 0x42, 0xff, 0x19, 0x7d, 0x33, 0x80, 0x01)), null);
+});
+
 for (const [name, format] of [['long-exif.jpg', 'jpeg'], ['long-comment.gif', 'gif']]) {
   test('detects ' + name + ' even when the first frame follows 4 KiB of metadata', () => {
     const bytes = fixture(name);
@@ -34,4 +39,9 @@ test('uses the SVG root namespace regardless of declaration order', () => {
 test('requires a well-formed SVG root in the SVG namespace', () => {
   assert.equal(detectText('<root><svg xmlns="' + ns + '"/></root>'), null);
   assert.equal(detectText('<svg xmlns="' + ns + '">'), null);
+});
+
+test('rejects SVG roots with a missing or incorrect namespace', () => {
+  assert.equal(detectText('<svg><rect/></svg>'), null);
+  assert.equal(detectText('<svg xmlns="urn:other"/>'), null);
 });
