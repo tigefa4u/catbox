@@ -90,7 +90,7 @@ export function detectImageFormat(head: Uint8Array): ImageFormat | null {
       const view = new DataView(head.buffer, head.byteOffset, scanEnd);
       let offset = 8;
       while (offset + 12 <= scanEnd) {
-        const chunkLen = view.getUint32(offset);
+        const chunkLen = view.getUint32(offset, false); // PNG stores chunk lengths in big-endian order.
         const next = offset + 12 + chunkLen;
         if (next <= offset || next > scanEnd) break;
         if (chunkLen === 0 && startsWith(head, PNG_IEND, offset + 4)) return 'png';
