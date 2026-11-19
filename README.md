@@ -14,17 +14,20 @@ Catbox is a lightweight image-hosting service built with [Cloudflare Workers](ht
 - Missing image URLs return the bundled Catbox logo instead of a plain 404.
 - Open Graph and Twitter Card link previews with a Catbox logo image.
 - A JSON upload API with CORS enabled.
+- A `catbox` CLI for single-image and folder uploads, built on [Usage](https://usage.jdx.dev/).
 
 ## Requirements
 
-- Node.js 18 or later and npm.
+- Node.js 22 or later and npm.
+- [Usage](https://usage.jdx.dev/) for the CLI, installed by `mise install`.
 - A Cloudflare account with R2 enabled to deploy.
 
 ## Local development
 
-Install dependencies and start the local Worker:
+Install the mise-managed tools and dependencies, then start the local Worker:
 
 ```sh
+mise install
 npm install
 npm run dev
 ```
@@ -42,6 +45,54 @@ npm run deploy
 ```
 
 The Worker is configured in [`wrangler.jsonc`](./wrangler.jsonc), which binds the `catbox-images` bucket as `IMAGES`. Update the Worker name or bucket name there if you use different resources.
+
+## CLI
+
+The `catbox` command uploads one image or a folder of images.
+
+Install the tools and expose the command:
+
+```sh
+mise install
+npm link
+```
+
+Alternatively, run `./cli/catbox` directly or add `cli/` to `PATH`. The command uses [Usage](https://usage.jdx.dev/) for argument parsing, validation, help, and completions.
+
+Upload a single file:
+
+```sh
+catbox image.png
+```
+
+Upload every supported image directly inside a folder:
+
+```sh
+catbox folder/
+```
+
+Include nested folders:
+
+```sh
+catbox folder/ --recursive
+```
+
+Print structured JSON instead of one URL per line:
+
+```sh
+catbox folder/ --recursive --json
+```
+
+The CLI defaults to `https://catbox.tigefa.workers.dev`. Target local development with `--base-url` or `CATBOX_URL`:
+
+```sh
+catbox image.png --base-url http://localhost:8787
+CATBOX_URL=http://localhost:8787 catbox folder/
+```
+
+Folder scans use PNG, JPEG, GIF, WebP, AVIF, and SVG extensions, skip hidden entries and symlinks, and are non-recursive unless `--recursive` is given. Files over 10 MiB are rejected before upload.
+
+Uploads use `--concurrency` (default 2, range 1-8) and start a request every 550 ms to stay under the service's 120-per-minute limit. The CLI retries 429, 5xx, and network failures, prints one URL per successful upload, and exits non-zero if any file fails.
 
 ## Upload API
 
@@ -92,11 +143,14 @@ On a first visit the page follows the browser preference: a light color scheme u
 
 Clicking the toggle stores the chosen theme in the `catbox_theme` cookie and overrides the system preference. Append `?theme=auto` to the URL to clear that choice and follow the browser again. The additional **Dark** palette remains available with `?theme=dark`.
 
-## Type checking
+## Testing
 
 ```sh
 npm run typecheck
+npm run test:cli
 ```
+
+`test:cli` runs the CLI integration tests against a local mock server; it needs `usage` on `PATH` (provided by `mise install`).
 
 ## License
 

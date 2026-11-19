@@ -1,0 +1,328 @@
+#!/usr/bin/env -S usage exec node
+//USAGE about "Upload images to Catbox"
+//USAGE arg "<path>" help="Image file or directory of images"
+//USAGE flag "-u --base-url <url>" help="Catbox base URL" env="CATBOX_URL" default="https://catbox.tigefa.workers.dev"
+//USAGE flag "-j --json" help="Print structured JSON results"
+//USAGE flag "-r --recursive" help="Recurse into subdirectories when <path> is a folder"
+//USAGE flag "-c --concurrency <n>" help="Parallel uploads (1-8)" default="2"
+
+/* Catbox CLI — upload a single image or a folder of images.
+ *
+ * The //USAGE lines above are the command's interface. Usage parses the
+ * arguments, provides --help, and exports each value as a usage_* environment
+ * variable. The code below only implements the upload behavior.
+ */
+(async function main() {
+  'use strict';
+
+  const fs = await import('node:fs/promises');
+  const path = await import('node:path');
+
+  const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+  const MAX_ATTEMPTS = 5;
+  const START_INTERVAL_MS = 550;
+  const DEFAULT_BASE_URL = 'https://catbox.tigefa.workers.dev';
+  const IMAGE_EXTENSIONS = new Set([
+    '.png',
+    '.jpg',
+    '.jpeg',
+    '.gif',
+    '.webp',
+    '.avif',
+    '.svg',
+  ]);
+  const MIME_TYPES = {
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.gif': 'image/gif',
+    '.webp': 'image/webp',
+    '.avif': 'image/avif',
+    '.svg': 'image/svg+xml',
+  };
+
+  const rawPath = process.env.usage_path;
+  const rawBaseUrl = process.env.usage_base_url || DEFAULT_BASE_URL;
+  const jsonOutput = process.env.usage_json === 'true';
+  const recursive = process.env.usage_recursive === 'true';
+  const concurrency = Number(process.env.usage_concurrency || '2');
+
+  let endpoint;
+  let nextStartAt = 0;
+  let pauseUntil = 0;
+  let startQueue = Promise.resolve();
+
+  try {
+    if (!rawPath) throw new Error('missing <path>');
+    if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 8) {
+      throw new Error('--concurrency must be between 1 and 8');
+    }
+
+    endpoint = buildEndpoint(rawBaseUrl);
+
+    const files = await discover(rawPath);
+    if (files.length === 0) {
+      throw new Error(`no supported images found in ${rawPath}`);
+    }
+
+    const jobs = await buildJobs(files);
+    const results = await runJobs(jobs);
+
+    const uploaded = results.filter((result) => typeof result.url === 'string').length;
+    const failed = results.length - uploaded;
+
+    if (jsonOutput) {
+      process.stdout.write(`${JSON.stringify({ uploaded, failed, files: results }, null, 2)}\n`);
+    }
+
+    process.stderr.write(
+      `Uploaded ${uploaded} of ${results.length} image${results.length === 1 ? '' : 's'}.\n`,
+    );
+    process.exitCode = failed > 0 ? 1 : 0;
+  } catch (err) {
+    process.stderr.write(`catbox: ${errorMessage(err)}\n`);
+    process.exitCode = 1;
+  }
+
+  function errorMessage(err) {
+    return err instanceof Error ? err.message : String(err);
+  }
+
+  function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  function buildEndpoint(value) {
+    let url;
+    try {
+      url = new URL(value);
+    } catch (err) {
+      throw new Error(`invalid base URL: ${value}`);
+    }
+
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      throw new Error('base URL must use http or https');
+    }
+
+    if (!url.pathname.endsWith('/')) {
+      url.pathname += '/';
+    }
+
+    return new URL('upload', url).toString();
+  }
+
+  async function discover(input) {
+    const target = path.resolve(input);
+    let stats;
+
+    try {
+      stats = await fs.stat(target);
+    } catch (err) {
+      throw new Error(`path not found: ${input}`);
+    }
+
+    if (stats.isFile()) return [target];
+    if (!stats.isDirectory()) throw new Error(`not a file or directory: ${input}`);
+
+    const files = await walk(target);
+    if (files.length === 0) throw new Error(`no supported images found in ${input}`);
+    return files;
+  }
+
+  async function walk(dir) {
+    const entries = await fs.readdir(dir, { withFileTypes: true });
+    entries.sort((left, right) => left.name.localeCompare(right.name));
+
+    const files = [];
+    for (const entry of entries) {
+      if (entry.name.startsWith('.')) continue;
+
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (recursive) files.push(...(await walk(full)));
+      } else if (entry.isFile() && IMAGE_EXTENSIONS.has(path.extname(entry.name).toLowerCase())) {
+        files.push(full);
+      }
+    }
+
+    return files;
+  }
+
+  function displayPath(file) {
+    if (path.isAbsolute(rawPath || '')) return file;
+    const relative = path.relative(process.cwd(), file);
+    return relative || file;
+  }
+
+  async function buildJobs(files) {
+    const jobs = [];
+
+    for (const file of files) {
+      const display = displayPath(file);
+      try {
+        const stats = await fs.stat(file);
+        if (!stats.isFile()) {
+          jobs.push({ file, display, error: 'not a regular file' });
+        } else if (stats.size > MAX_UPLOAD_BYTES) {
+          jobs.push({
+            file,
+            display,
+            error: `too large (max ${MAX_UPLOAD_BYTES / (1024 * 1024)} MiB)`,
+          });
+        } else {
+          jobs.push({ file, display });
+        }
+      } catch (err) {
+        jobs.push({ file, display, error: errorMessage(err) });
+      }
+    }
+
+    return jobs;
+  }
+
+  async function runJobs(jobs) {
+    const results = new Array(jobs.length);
+    let nextIndex = 0;
+    const workerCount = Math.min(concurrency, jobs.length);
+
+    const workers = Array.from({ length: workerCount }, async () => {
+      while (true) {
+        const index = nextIndex++;
+        if (index >= jobs.length) return;
+
+        const job = jobs[index];
+        if (job.error) {
+          results[index] = { path: job.display, error: job.error };
+          process.stderr.write(`${job.display}: ${job.error}\n`);
+          continue;
+        }
+
+        try {
+          const result = await uploadFile(job);
+          results[index] = result;
+          if (!jsonOutput) process.stdout.write(`${result.url}\n`);
+        } catch (err) {
+          const message = errorMessage(err);
+          results[index] = { path: job.display, error: message };
+          process.stderr.write(`${job.display}: ${message}\n`);
+        }
+      }
+    });
+
+    await Promise.all(workers);
+    return results;
+  }
+
+  async function uploadFile(job) {
+    const filename = path.basename(job.file);
+    const buffer = await fs.readFile(job.file);
+
+    if (buffer.byteLength > MAX_UPLOAD_BYTES) {
+      throw new Error(`too large (max ${MAX_UPLOAD_BYTES / (1024 * 1024)} MiB)`);
+    }
+
+    const mimeType =
+      MIME_TYPES[path.extname(filename).toLowerCase()] || 'application/octet-stream';
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      await waitForTurn();
+
+      let response;
+      try {
+        const form = new FormData();
+        form.append('fileToUpload', new Blob([buffer], { type: mimeType }), filename);
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { Accept: 'application/json' },
+          body: form,
+          signal: AbortSignal.timeout(120_000),
+        });
+      } catch (err) {
+        if (attempt >= MAX_ATTEMPTS) {
+          throw new Error(`network error: ${errorMessage(err)}`);
+        }
+        await sleep(backoff(attempt));
+        continue;
+      }
+
+      let text;
+      try {
+        text = await response.text();
+      } catch (err) {
+        if (attempt >= MAX_ATTEMPTS) {
+          throw new Error(`network error: ${errorMessage(err)}`);
+        }
+        await sleep(backoff(attempt));
+        continue;
+      }
+
+      let body = null;
+      try {
+        body = text ? JSON.parse(text) : null;
+      } catch (err) {
+        body = null;
+      }
+
+      const serverError =
+        body && typeof body.error === 'string' ? body.error : null;
+
+      if (response.ok && body && typeof body.url === 'string') {
+        return {
+          path: job.display,
+          name: typeof body.name === 'string' ? body.name : filename,
+          url: body.url,
+        };
+      }
+
+      if (response.status === 429) {
+        const delay = retryAfterMs(response);
+        pauseUntil = Math.max(pauseUntil, Date.now() + delay);
+        if (attempt >= MAX_ATTEMPTS) {
+          throw new Error(serverError || 'rate limited by the server');
+        }
+        continue;
+      }
+
+      if (response.status >= 500) {
+        if (attempt >= MAX_ATTEMPTS) {
+          throw new Error(serverError || `server error (HTTP ${response.status})`);
+        }
+        await sleep(backoff(attempt));
+        continue;
+      }
+
+      throw new Error(serverError || `upload failed (HTTP ${response.status})`);
+    }
+
+    throw new Error('upload failed');
+  }
+
+  function waitForTurn() {
+    const turn = startQueue.then(async () => {
+      while (Date.now() < pauseUntil) {
+        await sleep(pauseUntil - Date.now());
+      }
+
+      const wait = nextStartAt - Date.now();
+      if (wait > 0) await sleep(wait);
+
+      nextStartAt = Date.now() + START_INTERVAL_MS;
+    });
+
+    startQueue = turn.catch(() => {});
+    return turn;
+  }
+
+  function retryAfterMs(response) {
+    const value = response.headers.get('retry-after');
+    const seconds = Number.parseInt(value || '', 10);
+    if (Number.isFinite(seconds) && seconds > 0) {
+      return Math.min(seconds * 1000, 120_000);
+    }
+    return 60_000;
+  }
+
+  function backoff(attempt) {
+    return Math.min(30_000, 1000 * 2 ** (attempt - 1));
+  }
+})();
