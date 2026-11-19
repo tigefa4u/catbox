@@ -31,6 +31,17 @@ npm run dev
 
 Open [http://localhost:8787](http://localhost:8787). Wrangler provides a local R2 implementation for development using the `IMAGES` binding configured in `wrangler.jsonc`.
 
+## Pre-commit checks
+
+Install [pre-commit](https://pre-commit.com/#install) and run these commands from the repository root:
+
+```sh
+pre-commit install
+pre-commit run --all-files
+```
+
+The hook checks browser scripts and JavaScript tests for syntax errors. Pre-commit installs the pinned Node.js and ESLint versions in an isolated environment; the hook does not need the project's `node_modules`.
+
 ## Deploy
 
 Authenticate with Cloudflare, create the R2 bucket configured for this project, and deploy:
