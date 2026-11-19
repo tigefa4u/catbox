@@ -5,7 +5,6 @@ import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL, UPLOAD_FIELD_NAME } from './constan
 import {
   FORMAT_EXTENSIONS,
   FORMAT_MIME_TYPES,
-  SNIFF_LENGTH,
   SUPPORTED_FORMATS_LABEL,
   detectImageFormat,
 } from './image';
@@ -279,8 +278,9 @@ app.post('/upload', async (c) => {
     // 1. Sniff the real image format from the magic bytes. The browser
     //    supplied MIME type is only a hint: a file can be renamed to .png or
     //    claim image/png while actually holding something else entirely.
-    const head = new Uint8Array(await file.slice(0, SNIFF_LENGTH).arrayBuffer());
-    const format = detectImageFormat(head);
+    // parseUpload already enforces the file size limit. JPEG and GIF metadata
+    // can move the first frame beyond a fixed-size prefix.
+    const format = detectImageFormat(new Uint8Array(await file.arrayBuffer()));
 
     if (!format) {
       return c.json(

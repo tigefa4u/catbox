@@ -1,0 +1,10 @@
+repos:
+  - repo: local
+    hooks:
+      - id: javascript-syntax
+        name: Check JavaScript syntax
+        entry: eslint
+        language: node
+        language_version: 24.14.0
+        additional_dependencies: [eslint@9.39.5]
+        files: ^(public/js/.*[.]js|tests/.*[.]mjs)$

@@ -14,10 +14,12 @@
     "deploy": "wrangler deploy",
     "cf-typegen": "wrangler types",
     "typecheck": "npm run cf-typegen && tsc --noEmit",
-    "test:cli": "node --test cli/catbox.test.mjs"
+    "test:cli": "node --test cli/catbox.test.mjs",
+    "test": "node --test tests/*.test.mjs"
   },
   "dependencies": {
-    "hono": "^4.13.19"
+    "hono": "^4.13.19",
+    "saxes": "^6.0.0"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

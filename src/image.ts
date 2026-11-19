@@ -1,17 +1,4 @@
-/**
- * Image format detection.
- *
- * A browser supplied MIME type is only a hint: a file can be renamed or
- * forged. The upload endpoint sniffs the magic bytes of the first bytes of
- * the file so only real images are stored and served with a truthful
- * Content-Type.
- *
- * Validation is limited to the prefix window (SNIFF_LENGTH) because we only
- * read the first N bytes from the uploaded file.  End-of-file markers (IEND,
- * EOI, 0x3b trailer) are therefore best-effort: when they are visible we
- * confirm them; when they are outside the window we accept the format on the
- * basis of structural header validity alone.
- */
+import { SaxesParser } from 'saxes';
 
 /** Image formats the upload endpoint accepts. */
 export type ImageFormat = 'png' | 'jpeg' | 'gif' | 'webp' | 'avif' | 'svg';
@@ -49,8 +36,12 @@ export const FORMAT_MIME_TYPES: Record<ImageFormat, string> = {
 /** Human readable list of the accepted formats. */
 export const SUPPORTED_FORMATS_LABEL = 'PNG, JPEG, GIF, WebP, AVIF or SVG';
 
-/** Number of leading bytes needed to identify every supported format. */
-export const SNIFF_LENGTH = 4096;
+const PNG_SCAN_LENGTH = 4096;
+const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
+const JPEG_FRAME_MARKERS = new Set([
+  0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7,
+  0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf,
+]);
 
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const PNG_IHDR = [0x49, 0x48, 0x44, 0x52];  // IHDR chunk type
@@ -82,8 +73,8 @@ function readAscii(head: Uint8Array, offset: number): string {
 }
 
 /**
- * Identify an image format from the first bytes of a file.
- * Returns `null` when the bytes do not match any supported format.
+ * Identify an image format from a size-checked upload. Raster detection
+ * recognizes container headers and does not decode or verify image pixels.
  */
 export function detectImageFormat(head: Uint8Array): ImageFormat | null {
   if (head.length === 0) return null;
@@ -95,18 +86,14 @@ export function detectImageFormat(head: Uint8Array): ImageFormat | null {
       (head[8] === 0x00 && head[9] === 0x00 && head[10] === 0x00 && head[11] === 0x0d) &&
       startsWith(head, PNG_IHDR, 12)
     ) {
-      // Try to find IEND within the sniff window.
+      const scanEnd = Math.min(head.length, PNG_SCAN_LENGTH);
+      const view = new DataView(head.buffer, head.byteOffset, scanEnd);
       let offset = 8;
-      while (offset < head.length - 8) {
-        if (offset + 8 >= head.length) break;  // need at least chunk length field
-        const chunkLen = ((head[offset]! & 0xff) << 24) | ((head[offset + 1]! & 0xff) << 16) | ((head[offset + 2]! & 0xff) << 8) | (head[offset + 3]! & 0xff);
-        if (chunkLen > 0xffffff || offset + 12 + chunkLen > head.length) break;
-        // Check chunk type at this offset before advancing.
-        if (startsWith(head, PNG_IEND, offset + 4)) {
-          return 'png'; // IEND found → definitely valid
-        }
+      while (offset + 12 <= scanEnd) {
+        const chunkLen = view.getUint32(offset, false); // PNG stores chunk lengths in big-endian order.
         const next = offset + 12 + chunkLen;
-        if (next <= offset) break;  // prevent infinite loop on malformed chunks
+        if (next <= offset || next > scanEnd) break;
+        if (chunkLen === 0 && startsWith(head, PNG_IEND, offset + 4)) return 'png';
         offset = next;
       }
       // IEND not in window but IHDR is valid → treat as PNG.
@@ -114,70 +101,49 @@ export function detectImageFormat(head: Uint8Array): ImageFormat | null {
     }
   }
 
-  // --- JPEG: SOI + at least one SOF* marker; EOI if visible ---
+  // --- JPEG: walk length-prefixed header segments until a frame ---
   if (head.length >= 10 && head[0] === 0xff && head[1] === 0xd8) {
     let offset = 2;
-    let foundFrame = false;
-    while (offset < head.length - 1) {
-      if (head[offset] !== 0xff) break;
-      if (head[offset + 1] === 0x00) { offset += 2; continue; } // stuffing
-      const marker = head[offset + 1]!;
-      if (marker >= 0xc0 && marker <= 0xc3) {
-        foundFrame = true;
+    while (offset < head.length && head[offset] === 0xff) {
+      do { offset++; } while (head[offset] === 0xff); // marker fill bytes
+      const marker = head[offset++];
+      if (marker === 0x01) continue; // TEM has no length field
+      if (marker === undefined || marker === 0x00 || (marker >= 0xd0 && marker <= 0xda)) break;
+      if (offset + 2 > head.length) break;
+      const segLen = (head[offset]! << 8) | head[offset + 1]!;
+      if (segLen < 2 || offset + segLen > head.length) break;
+      if (JPEG_FRAME_MARKERS.has(marker)) {
+        if (segLen < 11) return null;
+        const components = head[offset + 7]!;
+        return components > 0 && segLen === 8 + 3 * components ? 'jpeg' : null;
       }
-      if (marker === 0xd9) { // EOI — found frame AND end
-        return foundFrame ? 'jpeg' : null;
-      }
-      if (marker === 0xd8 || marker === 0xac) break; // RST, COM: skip
-      if (marker === 0xda) { // SOS — compressed data follows, can't parse segments
-        break;
-      }
-      if (offset + 3 >= head.length) break;
-      const segLen = (head[offset + 2]! << 8) | head[offset + 3]!;
-      if (segLen < 2) break;
-      offset += 2 + segLen;
+      offset += segLen;
     }
-    if (foundFrame) return 'jpeg'; // SOF found, EOI may be beyond window
+    return null;
   }
 
-  // --- GIF: signature + GIF header + image descriptor, trailer if visible ---
-  if ((startsWith(head, GIF87_SIGNATURE) || startsWith(head, GIF89_SIGNATURE)) && head.length >= 22) {
-    const b10 = head[10]!;
-    const hasGCT = (b10 & 0x80) !== 0;
-    const gctSize = hasGCT ? Math.pow(2, (b10 & 0x07) + 1) * 3 : 0;
-    let offset = 13 + gctSize; // LSD ends at 12, GCT starts at 13
-    let foundImage = false;
+  // --- GIF: walk extension sub-blocks to the first image descriptor ---
+  if ((startsWith(head, GIF87_SIGNATURE) || startsWith(head, GIF89_SIGNATURE)) && head.length >= 13) {
+    const colorTableSize = (flags: number) => (flags & 0x80) ? 3 * (2 ** ((flags & 7) + 1)) : 0;
+    let offset = 13 + colorTableSize(head[10]!);
     while (offset < head.length) {
-      if (head[offset] === 0x3b) { // trailer
-        return foundImage ? 'gif' : null;
+      const blockType = head[offset];
+      if (blockType === 0x2c) {
+        if (offset + 10 > head.length) return null;
+        const tableSize = colorTableSize(head[offset + 9]!);
+        return offset + 10 + tableSize < head.length ? 'gif' : null;
       }
-      if (head[offset] === 0x2c) { // image descriptor
-        foundImage = true;
-        // Skip past image descriptor (9 bytes: x,y,w,h + flags, LZW min) and LZW sub-blocks.
-        offset += 9;
-        if (offset < head.length) {
-          while (offset < head.length) {
-            const lzwSize = head[offset]!;
-            if (lzwSize === 0) { offset++; break; } // LZW terminator
-            offset += lzwSize;
-            if (offset >= head.length) break; // truncated
-          }
-        }
-      } else if (head[offset] === 0x21) {
-        // Extension block: skip introducer + label + all sub-blocks.
-        offset += 2; // skip introducer and label
-        while (offset < head.length) {
-          if (head[offset] === 0x00) { offset++; break; } // sub-block terminator
-          const subLen = head[offset]!;
-          if (offset + 1 + subLen > head.length) break;  // don't skip past buffer with oversized metadata
-          offset += 1 + subLen;
-        }
-      } else {
-        break; // unexpected block
+      if (blockType !== 0x21) return null;
+      offset += 2; // extension introducer and label
+      for (;;) {
+        if (offset >= head.length) return null;
+        const subLen = head[offset++]!;
+        if (subLen === 0) break;
+        if (offset + subLen > head.length) return null;
+        offset += subLen;
       }
     }
-    // Image descriptor found but trailer not in window → treat as GIF.
-    if (foundImage) return 'gif';
+    return null;
   }
 
   // --- WebP ---
@@ -189,22 +155,20 @@ export function detectImageFormat(head: Uint8Array): ImageFormat | null {
     if (brand === 'avif' || brand === 'avis') return 'avif';
   }
 
-  // --- SVG: text detection with namespace-aware matching ---
-  const text = new TextDecoder()
-    .decode(head.subarray(0, Math.min(head.length, SNIFF_LENGTH)))
-    .trimStart()
-    .toLowerCase();
+  // --- SVG: resolve the document root, not a descendant or a declaration in isolation ---
+  try {
+    const text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: false }).decode(head);
+    if (!text.trimStart().startsWith('<')) return null;
 
-  // Match any tag whose local name is "svg" (possibly namespace-prefixed).
-  const svgTagMatch = text.match(/<[^>]*?svg[\s>][^>]*>/);
-  if (!svgTagMatch) return null;
-
-  const svgNS = 'http://www.w3.org/2000/svg';
-  // Search ALL xmlns declarations in the text, not just within the SVG tag,
-  // so declaration order doesn't affect detection.
-  const hasDefaultNs = /xmlns\s*=\s*["']([^"']*)["']/.test(text) && text.match(/xmlns\s*=\s*["']([^"']*)["']/)?.[1] === svgNS;
-  const hasPrefixedNs = /xmlns:([^'\s]*)\s*=\s*["'](.*?)["']/.test(text) && text.match(/xmlns:([^'\s]*)\s*=\s*["'](.*?)["']/)?.[2] === svgNS;
-  if (hasDefaultNs || hasPrefixedNs) return 'svg';
-
-  return null;
+    let rootIsSvg: boolean | undefined;
+    // Saxes checks XML syntax and namespaces without resolving external resources.
+    const parser = new SaxesParser({ xmlns: true });
+    parser.on('opentag', (tag) => {
+      rootIsSvg ??= tag.local === 'svg' && tag.uri === SVG_NAMESPACE;
+    });
+    parser.write(text).close();
+    return rootIsSvg ? 'svg' : null;
+  } catch {
+    return null; // not UTF-8 or not well-formed XML
+  }
 }
