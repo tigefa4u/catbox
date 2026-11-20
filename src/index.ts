@@ -5,6 +5,7 @@ import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL, UPLOAD_FIELD_NAME } from './constan
 import {
   FORMAT_MIME_TYPES,
   IMAGE_KEY_PATTERN,
+  RETRY_IMAGE_KEY_PATTERN,
   LEGACY_DOTLESS_IMAGE_KEY_PATTERN,
   SUPPORTED_FORMATS_LABEL,
   buildImageKey,
@@ -254,6 +255,19 @@ app.get('/', (c) => {
 // ---------------------------------------------------------------------------
 // Upload Endpoint: POST /upload
 // ---------------------------------------------------------------------------
+const UPLOAD_TOKEN_PATTERN = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
+
+async function retryImageId(token: string, bytes: ArrayBuffer): Promise<string> {
+  // Scope each token to the actual bytes, not a multipart boundary or a name.
+  const payloadHash = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
+  const tokenBytes = new TextEncoder().encode(token.toLowerCase());
+  const input = new Uint8Array(tokenBytes.length + payloadHash.length);
+  input.set(tokenBytes);
+  input.set(payloadHash, tokenBytes.length);
+  const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', input));
+  return Array.from(hash.subarray(0, 16), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
 app.post('/upload', async (c) => {
   // Anonymous uploads are rate limited per client. The binding is
   // approximate and per Cloudflare location; a WAF rule can add a stricter
@@ -267,6 +281,10 @@ app.post('/upload', async (c) => {
   }
 
   try {
+    const uploadToken = c.req.header('x-catbox-upload-token');
+    if (uploadToken !== undefined && !UPLOAD_TOKEN_PATTERN.test(uploadToken)) {
+      return c.json({ error: 'X-Catbox-Upload-Token must be a version 4 UUID.' }, 400);
+    }
     const parsed = await parseUpload(c.req.raw);
     if (!parsed.ok) {
       return c.json({ error: parsed.error }, parsed.status);
@@ -279,7 +297,8 @@ app.post('/upload', async (c) => {
     //    claim image/png while actually holding something else entirely.
     // parseUpload already enforces the file size limit. JPEG and GIF metadata
     // can move the first frame beyond a fixed-size prefix.
-    const format = detectImageFormat(new Uint8Array(await file.arrayBuffer()));
+    const bytes = await file.arrayBuffer();
+    const format = detectImageFormat(new Uint8Array(bytes));
 
     if (!format) {
       return c.json(
@@ -290,16 +309,18 @@ app.post('/upload', async (c) => {
       );
     }
 
-    // 2. Generate a unique 11-character key with the canonical extension.
     const contentType = FORMAT_MIME_TYPES[format];
+    const retryId = uploadToken ? await retryImageId(uploadToken, bytes) : null;
+    const maxAttempts = retryId ? 1 : 5;
 
     // 3. Store in R2 with atomic create-only: onlyIf.etagDoesNotMatch='*'
     //    ensures nothing with this key exists. R2 returns null on failure
     //    rather than throwing, so we check the result and retry.
     let key = '';
     let stored = false;
-    for (let attempt = 0; attempt < 5; attempt++) {
-      key = buildImageKey(generateId(11), format);
+    let replay = false;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      key = buildImageKey(retryId ?? generateId(11), format);
       const result = await c.env.IMAGES.put(
         key,
         file.stream(),
@@ -316,8 +337,12 @@ app.post('/upload', async (c) => {
         stored = true;
         break;
       }
+      if (retryId) {
+        // A retry with the same token and bytes already reached storage.
+        replay = true;
+      }
     }
-    if (!stored) {
+    if (!stored && !replay) {
       return c.json(
         {
           error: 'Upload failed. Too many key collisions — please try again.',
@@ -332,7 +357,7 @@ app.post('/upload', async (c) => {
 
     console.log(
       JSON.stringify({
-        message: 'image uploaded',
+        message: replay ? 'upload replayed' : 'image uploaded',
         key,
         bytes: file.size,
         contentType,
@@ -343,12 +368,13 @@ app.post('/upload', async (c) => {
     // 5. Return the URL. Browsers posting a plain form get HTML back,
     //    API clients get JSON.
     const accepts = c.req.header('accept') ?? '';
+    const status = replay ? 200 : 201;
     if (accepts.includes('text/html')) {
       const cookieTheme = readThemeCookie(c.req.header('cookie'));
       const themeMode: ThemeMode = cookieTheme ? 'manual' : 'auto';
       const theme = getTheme(cookieTheme ?? AUTO_LIGHT_THEME);
       return new Response(renderUploadResult(publicUrl, file.name, theme, themeMode), {
-        status: 201,
+        status,
         headers: {
           'Content-Type': 'text/html; charset=utf-8',
           'Cache-Control': 'no-store',
@@ -365,7 +391,7 @@ app.post('/upload', async (c) => {
       });
     }
 
-    return c.json({ url: publicUrl, name: file.name }, 201);
+    return c.json({ url: publicUrl, name: file.name }, status);
   } catch (err) {
     console.error(
       JSON.stringify({
@@ -385,7 +411,7 @@ app.get('/:filename', async (c) => {
 
   // Accept the exact old key so URLs issued by the broken uploader still work.
   const canonical = IMAGE_KEY_PATTERN.test(filename);
-  if (!canonical && !LEGACY_DOTLESS_IMAGE_KEY_PATTERN.test(filename)) {
+  if (!canonical && !RETRY_IMAGE_KEY_PATTERN.test(filename) && !LEGACY_DOTLESS_IMAGE_KEY_PATTERN.test(filename)) {
     return c.text('Not found', 404);
   }
 

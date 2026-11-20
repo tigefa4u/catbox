@@ -17,6 +17,7 @@
 
   const fs = await import('node:fs/promises');
   const path = await import('node:path');
+  const { randomUUID } = await import('node:crypto');
 
   const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
   const MAX_ATTEMPTS = 5;
@@ -223,6 +224,8 @@
 
     const mimeType =
       MIME_TYPES[path.extname(filename).toLowerCase()] || 'application/octet-stream';
+    // Keep the token across retries, but not across separate uploads.
+    const uploadToken = randomUUID();
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       await waitForTurn();
@@ -233,7 +236,7 @@
         form.append('fileToUpload', new Blob([buffer], { type: mimeType }), filename);
         response = await fetch(endpoint, {
           method: 'POST',
-          headers: { Accept: 'application/json' },
+          headers: { Accept: 'application/json', 'X-Catbox-Upload-Token': uploadToken },
           body: form,
           signal: AbortSignal.timeout(120_000),
         });
