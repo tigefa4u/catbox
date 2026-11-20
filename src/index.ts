@@ -5,6 +5,7 @@ import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL, UPLOAD_FIELD_NAME } from './constan
 import {
   FORMAT_MIME_TYPES,
   IMAGE_KEY_PATTERN,
+  LEGACY_DOTLESS_IMAGE_KEY_PATTERN,
   SUPPORTED_FORMATS_LABEL,
   buildImageKey,
   detectImageFormat,
@@ -382,16 +383,17 @@ app.post('/upload', async (c) => {
 app.get('/:filename', async (c) => {
   const filename = c.req.param('filename');
 
-  // Only canonical uploaded-image keys are served; anything else is a 404.
-  if (!IMAGE_KEY_PATTERN.test(filename)) {
+  // Accept the exact old key so URLs issued by the broken uploader still work.
+  const canonical = IMAGE_KEY_PATTERN.test(filename);
+  if (!canonical && !LEGACY_DOTLESS_IMAGE_KEY_PATTERN.test(filename)) {
     return c.text('Not found', 404);
   }
 
   try {
     const object = await c.env.IMAGES.get(filename);
     if (!object) {
-      // Broken or deleted image URLs still show the Catbox logo.
-      return serveDefaultImage(c);
+      // Preserve the logo for canonical misses and the 404 for other paths.
+      return canonical ? serveDefaultImage(c) : c.text('Not found', 404);
     }
 
     // Stream the object back with appropriate headers.
