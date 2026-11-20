@@ -548,7 +548,10 @@
         status: 'pending',
         progress: 0,
         attempts: 0,
-        uploadToken: null,
+        uploadToken:
+          window.crypto && typeof window.crypto.randomUUID === 'function'
+            ? window.crypto.randomUUID()
+            : null,
         url: '',
         error: '',
         note: '',
