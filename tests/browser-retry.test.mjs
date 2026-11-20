@@ -26,7 +26,7 @@ function extractFunction(source, name) {
 test('browser upload stops after five requests and keeps Retry-After pause for queued files', () => {
   const now = 1_000;
   const queuePumpPauseChecks = [];
-  let pauseTickerStarts = 0;
+  let pauseTickerCalls = 0;
   let completed = 0;
   const context = {
     MAX_ATTEMPTS: 5,
@@ -35,7 +35,7 @@ test('browser upload stops after five requests and keeps Retry-After pause for q
     Date: { now: () => now },
     Math,
     startPauseTicker() {
-      pauseTickerStarts++;
+      pauseTickerCalls++;
     },
     completeItem() {
       completed++;
@@ -70,5 +70,5 @@ test('browser upload stops after five requests and keeps Retry-After pause for q
   assert.deepEqual(queuePumpPauseChecks, [true, true, true, true, true]);
   assert.equal(context.pausedUntil, now + 10_000);
   assert.equal(context.rateLimitedUntil, now + 10_000);
-  assert.equal(pauseTickerStarts, 5);
+  assert.equal(pauseTickerCalls, 5);
 });
