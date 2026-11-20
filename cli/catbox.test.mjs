@@ -148,6 +148,9 @@ test('prints structured JSON results', async (t) => {
   assert.equal(payload.failed, 0);
   assert.equal(payload.files.length, 2);
   assert.ok(payload.files.every((file) => typeof file.url === 'string'));
+  const tokens = server.requests.map(({ headers }) => headers['x-catbox-upload-token']);
+  assert.ok(tokens.every(Boolean));
+  assert.equal(new Set(tokens).size, 2);
 });
 
 test('reports a missing path', async (t) => {
@@ -180,6 +183,27 @@ test('retries a rate-limited upload', async (t) => {
   assert.equal(result.code, 0, result.stderr);
   assert.equal(server.requests.length, 2);
   assert.match(result.stdout, /upload-2\.png/);
+});
+
+test('resends the same upload token if the response is lost', async (t) => {
+  const server = await startServer((req, res, count) => {
+    if (count === 1) {
+      res.destroy();
+      return;
+    }
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ url: 'http://example.test/original.png' }));
+  });
+  t.after(() => server.close());
+
+  const result = await runCli([FIXTURE, '--base-url', server.base]);
+
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(server.requests.length, 2);
+  const [first, retry] = server.requests.map(({ headers }) => headers['x-catbox-upload-token']);
+  assert.match(first, /^[0-9a-f-]{36}$/);
+  assert.equal(retry, first);
+  assert.equal(result.stdout, 'http://example.test/original.png\n');
 });
 
 test('rejects oversized files before uploading', async (t) => {
