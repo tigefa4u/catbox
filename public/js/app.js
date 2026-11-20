@@ -548,6 +548,8 @@
         status: 'pending',
         progress: 0,
         attempts: 0,
+        // Keep one token for this queue item so retries reuse the same R2 key.
+        uploadToken: crypto.randomUUID(),
         url: '',
         error: '',
         note: '',
@@ -802,6 +804,9 @@
     item.xhr = xhr;
     xhr.open('POST', '/upload');
     xhr.setRequestHeader('Accept', 'application/json');
+    // The server derives a stable image key from this token and the file bytes.
+    // Reusing it makes automatic retries safe when the original response is lost.
+    xhr.setRequestHeader('X-Catbox-Upload-Token', item.uploadToken);
 
     xhr.upload.addEventListener('progress', function (event) {
       if (!event.lengthComputable) return;
