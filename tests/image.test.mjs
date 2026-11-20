@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import {
   IMAGE_KEY_PATTERN,
+  LEGACY_DOTLESS_IMAGE_KEY_PATTERN,
   SUPPORTED_FORMATS,
   buildImageKey,
   detectImageFormat,
@@ -55,5 +56,16 @@ test('upload keys have a dot before the extension and are servable', () => {
   for (const format of SUPPORTED_FORMATS) {
     const key = buildImageKey('abcdefghijk', format);
     assert.match(key, IMAGE_KEY_PATTERN, key);
+  }
+});
+
+test('legacy dotless lookup accepts exactly the keys emitted by the old uploader', () => {
+  for (const format of SUPPORTED_FORMATS) {
+    const canonical = buildImageKey('abcde123456', format);
+    assert.match(canonical.replace('.', ''), LEGACY_DOTLESS_IMAGE_KEY_PATTERN);
+    assert.doesNotMatch(canonical, LEGACY_DOTLESS_IMAGE_KEY_PATTERN);
+  }
+  for (const key of ['abcdefgpng', 'abcde123456jpeg', 'abcde123456exe', 'ABCDE123456png', 'abcde123456/png']) {
+    assert.doesNotMatch(key, LEGACY_DOTLESS_IMAGE_KEY_PATTERN);
   }
 });
