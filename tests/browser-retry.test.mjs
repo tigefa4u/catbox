@@ -34,19 +34,19 @@ test('browser upload stops after five requests and keeps Retry-After pause for q
     rateLimitedUntil: 0,
     Date: { now: () => now },
     Math,
-    startPauseTicker() {
-      pauseTickerCalls++;
-    },
-    completeItem() {
-      completed++;
-      // completeItem pumps the queue; it must observe the shared pause.
-      queuePumpPauseChecks.push(this.pausedUntil > now);
-    },
-    failItem(item, message) {
-      item.status = 'error';
-      item.error = message;
-      this.completeItem(item);
-    },
+  };
+  context.startPauseTicker = () => {
+    pauseTickerCalls++;
+  };
+  context.completeItem = () => {
+    completed++;
+    // completeItem pumps the queue; it must observe the shared pause.
+    queuePumpPauseChecks.push(context.pausedUntil > now);
+  };
+  context.failItem = (item, message) => {
+    item.status = 'error';
+    item.error = message;
+    context.completeItem(item);
   };
   const retryLater = vm.runInNewContext(
     '(' + extractFunction(appSource, 'retryLater') + ')',
