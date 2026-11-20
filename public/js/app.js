@@ -38,6 +38,7 @@
      under the server's 120 uploads/minute limit. */
   var MAX_CONCURRENT = 2;
   var MIN_START_INTERVAL_MS = 550;
+  // Total requests per item, including the initial upload.
   var MAX_ATTEMPTS = 5;
   var MAX_QUEUE_ITEMS = 500;
 
@@ -737,7 +738,16 @@
   function retryLater(item, delay, message, rateLimited) {
     item.attempts++;
 
-    if (item.attempts > MAX_ATTEMPTS) {
+    // Preserve a final HTTP 429's server backoff for queued files, but do not
+    // extend the shared pause for a network error that exhausts this item's retries.
+    if (delay > 0 && (rateLimited || item.attempts < MAX_ATTEMPTS)) {
+      var retryAt = Date.now() + delay;
+      pausedUntil = Math.max(pausedUntil, retryAt);
+      if (rateLimited) rateLimitedUntil = Math.max(rateLimitedUntil, retryAt);
+      startPauseTicker();
+    }
+
+    if (item.attempts >= MAX_ATTEMPTS) {
       failItem(item, message + ' Gave up after ' + MAX_ATTEMPTS + ' attempts.');
       return;
     }
@@ -746,13 +756,6 @@
     item.progress = 0;
     item.error = '';
     item.note = 'Waiting to retry…';
-
-    if (delay > 0) {
-      var retryAt = Date.now() + delay;
-      pausedUntil = Math.max(pausedUntil, retryAt);
-      if (rateLimited) rateLimitedUntil = Math.max(rateLimitedUntil, retryAt);
-      startPauseTicker();
-    }
 
     completeItem(item);
   }
