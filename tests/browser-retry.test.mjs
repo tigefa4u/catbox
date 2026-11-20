@@ -24,7 +24,7 @@ function extractFunction(source, name) {
 }
 
 test('browser upload stops after five requests and keeps Retry-After pause for queued files', () => {
-  const now = 1_000;
+  let now = 1_000;
   const queuePumpPauseChecks = [];
   let pauseTickerCalls = 0;
   let completed = 0;
@@ -59,7 +59,11 @@ test('browser upload stops after five requests and keeps Retry-After pause for q
   // Each invocation represents one completed HTTP 429 response.
   for (let response = 0; response < 5; response++) {
     retryLater.call(context, item, 10_000, 'Rate limited.', true);
-    if (item.status === 'pending') requestsSent++;
+    if (item.status === 'pending') {
+      requestsSent++;
+      // The next failed request arrives after the previous Retry-After expires.
+      now = context.pausedUntil;
+    }
   }
 
   assert.equal(requestsSent, 5, 'no sixth upload request should be scheduled');
