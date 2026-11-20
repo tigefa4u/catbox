@@ -38,6 +38,7 @@
      under the server's 120 uploads/minute limit. */
   var MAX_CONCURRENT = 2;
   var MIN_START_INTERVAL_MS = 550;
+  // Total requests per item, including the initial upload.
   var MAX_ATTEMPTS = 5;
   var MAX_QUEUE_ITEMS = 500;
 
@@ -737,7 +738,7 @@
   function retryLater(item, delay, message, rateLimited) {
     item.attempts++;
 
-    if (item.attempts > MAX_ATTEMPTS) {
+    if (item.attempts >= MAX_ATTEMPTS) {
       failItem(item, message + ' Gave up after ' + MAX_ATTEMPTS + ' attempts.');
       return;
     }
