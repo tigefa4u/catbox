@@ -54,12 +54,12 @@ test('browser upload stops after five requests and keeps Retry-After pause for q
   );
 
   const item = { attempts: 0, status: 'uploading', progress: 0, error: '', note: '' };
-  let requestsSent = 0;
+  let requestsSent = 1; // The initial upload request.
 
   // Each invocation represents one completed HTTP 429 response.
-  for (let request = 0; request < 5; request++) {
-    requestsSent++;
+  for (let response = 0; response < 5; response++) {
     retryLater.call(context, item, 10_000, 'Rate limited.', true);
+    if (item.status === 'pending') requestsSent++;
   }
 
   assert.equal(requestsSent, 5, 'no sixth upload request should be scheduled');
