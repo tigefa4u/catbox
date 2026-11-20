@@ -9,7 +9,7 @@ const fixture = (name) => readFile(new URL(name, import.meta.url));
 test('upload retries reuse one R2 object and keep distinct uploads separate', async (t) => {
   const server = createTestHarness({ workers: [{ configPath: 'wrangler.jsonc' }] });
   t.after(() => server.close());
-const { url } = await server.listen();
+  const { url } = await server.listen();
   const worker = server.getWorker();
   const png = await fixture('./fixtures/plain.png');
   const jpeg = await fixture('./fixtures/progressive.jpg');
@@ -53,11 +53,10 @@ const { url } = await server.listen();
   assert.equal((await upload(png, 'not-a-uuid')).status, 400);
 });
 
-
 test('legacy dotless URLs return stored image bytes', async (t) => {
   const server = createTestHarness({ workers: [{ configPath: 'wrangler.jsonc' }] });
   t.after(() => server.close());
-await server.listen();
+  await server.listen();
   const worker = server.getWorker();
   const { IMAGES } = await worker.getEnv();
   const png = await fixture('./fixtures/plain.png');
