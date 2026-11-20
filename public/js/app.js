@@ -548,6 +548,7 @@
         status: 'pending',
         progress: 0,
         attempts: 0,
+        uploadToken: null,
         url: '',
         error: '',
         note: '',
@@ -802,6 +803,12 @@
     item.xhr = xhr;
     xhr.open('POST', '/upload');
     xhr.setRequestHeader('Accept', 'application/json');
+    // A retry must use the same token even if the Worker saved the first attempt.
+    // Keep plain HTTP previews working when randomUUID is unavailable.
+    if (!item.uploadToken && window.crypto && window.crypto.randomUUID) {
+      item.uploadToken = window.crypto.randomUUID();
+    }
+    if (item.uploadToken) xhr.setRequestHeader('X-Catbox-Upload-Token', item.uploadToken);
 
     xhr.upload.addEventListener('progress', function (event) {
       if (!event.lengthComputable) return;

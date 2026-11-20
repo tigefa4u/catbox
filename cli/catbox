@@ -302,12 +302,12 @@
 
   function waitForTurn() {
     const turn = startQueue.then(async () => {
-      while (Date.now() < pauseUntil) {
-        await sleep(pauseUntil - Date.now());
+      // A concurrent upload may extend the pause while we wait for a slot.
+      for (;;) {
+        const wait = Math.max(pauseUntil, nextStartAt) - Date.now();
+        if (wait <= 0) break;
+        await sleep(wait);
       }
-
-      const wait = nextStartAt - Date.now();
-      if (wait > 0) await sleep(wait);
 
       nextStartAt = Date.now() + START_INTERVAL_MS;
     });
