@@ -738,9 +738,9 @@
   function retryLater(item, delay, message, rateLimited) {
     item.attempts++;
 
-    // Apply server backoff even when this response exhausts the item's retries.
-    // Completing the failed item pumps the queue, which must still see this pause.
-    if (delay > 0) {
+    // Preserve a final HTTP 429's server backoff for queued files, but do not
+    // extend the shared pause for a network error that exhausts this item's retries.
+    if (delay > 0 && (rateLimited || item.attempts < MAX_ATTEMPTS)) {
       var retryAt = Date.now() + delay;
       pausedUntil = Math.max(pausedUntil, retryAt);
       if (rateLimited) rateLimitedUntil = Math.max(rateLimitedUntil, retryAt);
