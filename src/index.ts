@@ -3,9 +3,10 @@ import { Hono, type Context } from 'hono';
 import { cors } from 'hono/cors';
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL, UPLOAD_FIELD_NAME } from './constants';
 import {
-  FORMAT_EXTENSIONS,
   FORMAT_MIME_TYPES,
+  IMAGE_KEY_PATTERN,
   SUPPORTED_FORMATS_LABEL,
+  buildImageKey,
   detectImageFormat,
 } from './image';
 import {
@@ -149,9 +150,6 @@ async function parseUpload(request: Request): Promise<UploadParseResult> {
 /** Static Catbox logo served when an image key is missing from R2. */
 const DEFAULT_IMAGE_PATH = '/default-image.png';
 
-/** Canonical uploaded-image keys: seven or eleven characters plus a supported extension. */
-const IMAGE_KEY_PATTERN = /^[a-z0-9]{7,11}\.(png|jpe?g|gif|webp|avif|svg)$/i;
-
 /**
  * Serve the bundled Catbox logo for a missing image key.
  *
@@ -292,7 +290,6 @@ app.post('/upload', async (c) => {
     }
 
     // 2. Generate a unique 11-character key with the canonical extension.
-    const extension = FORMAT_EXTENSIONS[format];
     const contentType = FORMAT_MIME_TYPES[format];
 
     // 3. Store in R2 with atomic create-only: onlyIf.etagDoesNotMatch='*'
@@ -301,7 +298,7 @@ app.post('/upload', async (c) => {
     let key = '';
     let stored = false;
     for (let attempt = 0; attempt < 5; attempt++) {
-      key = `${generateId(11)}${extension}`;
+      key = buildImageKey(generateId(11), format);
       const result = await c.env.IMAGES.put(
         key,
         file.stream(),

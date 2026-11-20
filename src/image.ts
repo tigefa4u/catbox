@@ -33,6 +33,14 @@ export const FORMAT_MIME_TYPES: Record<ImageFormat, string> = {
   svg: 'image/svg+xml',
 };
 
+/** Canonical uploaded-image keys: seven or eleven characters plus a supported extension. */
+export const IMAGE_KEY_PATTERN = /^[a-z0-9]{7,11}\.(png|jpe?g|gif|webp|avif|svg)$/i;
+
+/** Build a storage key (`<id>.<ext>`) for an upload of the given format. */
+export function buildImageKey(id: string, format: ImageFormat): string {
+  return `${id}.${FORMAT_EXTENSIONS[format]}`;
+}
+
 /** Human readable list of the accepted formats. */
 export const SUPPORTED_FORMATS_LABEL = 'PNG, JPEG, GIF, WebP, AVIF or SVG';
 

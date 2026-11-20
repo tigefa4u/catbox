@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { detectImageFormat } from '../src/image.ts';
+import {
+  IMAGE_KEY_PATTERN,
+  SUPPORTED_FORMATS,
+  buildImageKey,
+  detectImageFormat,
+} from '../src/image.ts';
 
 const fixture = (name) => readFileSync(new URL('./fixtures/' + name, import.meta.url));
 
@@ -44,4 +49,11 @@ test('requires a well-formed SVG root in the SVG namespace', () => {
 test('rejects SVG roots with a missing or incorrect namespace', () => {
   assert.equal(detectText('<svg><rect/></svg>'), null);
   assert.equal(detectText('<svg xmlns="urn:other"/>'), null);
+});
+
+test('upload keys have a dot before the extension and are servable', () => {
+  for (const format of SUPPORTED_FORMATS) {
+    const key = buildImageKey('abcdefghijk', format);
+    assert.match(key, IMAGE_KEY_PATTERN, key);
+  }
 });
