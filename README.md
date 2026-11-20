@@ -104,7 +104,6 @@ CATBOX_URL=http://localhost:8787 catbox folder/
 Folder scans use PNG, JPEG, GIF, WebP, AVIF, and SVG extensions, skip hidden entries and symlinks, and are non-recursive unless `--recursive` is given. Files over 10 MiB are rejected before upload.
 
 Uploads use `--concurrency` (default 2, range 1-8) and start a request every 550 ms to stay under the service's 120-per-minute limit. The CLI retries 429, 5xx, and network failures, prints one URL per successful upload, and exits non-zero if any file fails.
-Each file gets a fresh upload token. With an updated Catbox Worker, automatic retries of the same bytes reuse the original URL instead of storing a duplicate. Running the CLI again starts a new upload. Older Workers ignore the token.
 
 ## Upload API
 

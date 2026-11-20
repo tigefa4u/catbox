@@ -36,9 +36,6 @@ export const FORMAT_MIME_TYPES: Record<ImageFormat, string> = {
 /** Canonical uploaded-image keys: seven or eleven characters plus a supported extension. */
 export const IMAGE_KEY_PATTERN = /^[a-z0-9]{7,11}\.(png|jpe?g|gif|webp|avif|svg)$/i;
 
-/** Retry-safe uploads use an isolated, longer key space. */
-export const RETRY_IMAGE_KEY_PATTERN = /^[a-f0-9]{32}\.(png|jpg|gif|webp|avif|svg)$/;
-
 /** Exact format emitted by the missing-dot upload bug. Never used for new uploads. */
 export const LEGACY_DOTLESS_IMAGE_KEY_PATTERN = /^[a-z0-9]{11}(?:png|jpg|gif|webp|avif|svg)$/;
 
