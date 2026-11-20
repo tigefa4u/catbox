@@ -738,6 +738,15 @@
   function retryLater(item, delay, message, rateLimited) {
     item.attempts++;
 
+    // Apply server backoff even when this response exhausts the item's retries.
+    // Completing the failed item pumps the queue, which must still see this pause.
+    if (delay > 0) {
+      var retryAt = Date.now() + delay;
+      pausedUntil = Math.max(pausedUntil, retryAt);
+      if (rateLimited) rateLimitedUntil = Math.max(rateLimitedUntil, retryAt);
+      startPauseTicker();
+    }
+
     if (item.attempts >= MAX_ATTEMPTS) {
       failItem(item, message + ' Gave up after ' + MAX_ATTEMPTS + ' attempts.');
       return;
@@ -747,13 +756,6 @@
     item.progress = 0;
     item.error = '';
     item.note = 'Waiting to retry…';
-
-    if (delay > 0) {
-      var retryAt = Date.now() + delay;
-      pausedUntil = Math.max(pausedUntil, retryAt);
-      if (rateLimited) rateLimitedUntil = Math.max(rateLimitedUntil, retryAt);
-      startPauseTicker();
-    }
 
     completeItem(item);
   }
