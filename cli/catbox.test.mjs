@@ -41,6 +41,7 @@ async function startServer(handler) {
     req.on('data', (chunk) => chunks.push(chunk));
     req.on('end', () => {
       requests.push({
+        receivedAt: performance.now(),
         method: req.method,
         url: req.url,
         headers: req.headers,
@@ -183,6 +184,32 @@ test('retries a rate-limited upload', async (t) => {
   assert.equal(result.code, 0, result.stderr);
   assert.equal(server.requests.length, 2);
   assert.match(result.stdout, /upload-2\.png/);
+});
+
+test('a queued upload honors a 429 received while waiting for its launch slot', async (t) => {
+  let rateLimitedAt;
+  const server = await startServer((req, res, count) => {
+    if (count === 1) {
+      setTimeout(() => {
+        rateLimitedAt = performance.now();
+        res.writeHead(429, { 'content-type': 'application/json', 'retry-after': '1' });
+        res.end(JSON.stringify({ error: 'rate limited' }));
+      }, 100);
+      return;
+    }
+    uploadOk(req, res, count);
+  });
+  t.after(() => server.close());
+  const { folder } = await makeFolderFixture(t);
+
+  const result = await runCli([folder, '--recursive', '--concurrency', '2', '--base-url', server.base]);
+
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(server.requests.length, 3);
+  const [first, queued, retry] = server.requests;
+  assert.ok(queued.receivedAt >= rateLimitedAt + 1000, 'queued upload started during Retry-After');
+  assert.notEqual(queued.headers['x-catbox-upload-token'], first.headers['x-catbox-upload-token']);
+  assert.equal(retry.headers['x-catbox-upload-token'], first.headers['x-catbox-upload-token']);
 });
 
 test('resends the same upload token if the response is lost', async (t) => {
