@@ -270,8 +270,8 @@ async function retryImageId(token: string, bytes: ArrayBuffer): Promise<string> 
 
 app.post('/upload', async (c) => {
   // Anonymous uploads are rate limited per client. The binding is
-  // approximate and per Cloudflare location; a WAF rule can add a stricter
-  // edge-wide limit if needed.
+  // approximate and per Cloudflare location. A zone WAF rule can reject
+  // traffic before it reaches the Worker, but is not a global quota.
   const rateLimitKey = c.req.header('cf-connecting-ip') ?? 'unknown';
   const { success } = await c.env.UPLOAD_RATE_LIMITER.limit({ key: rateLimitKey });
   if (!success) {

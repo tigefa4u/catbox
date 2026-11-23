@@ -57,6 +57,21 @@ npm run deploy
 
 The Worker is configured in [`wrangler.jsonc`](./wrangler.jsonc), which binds the `catbox-images` bucket as `IMAGES`. Update the Worker name or bucket name there if you use different resources.
 
+### Rate limits and Cloudflare free-tier capacity
+
+Catbox's `UPLOAD_RATE_LIMITER` applies only to `POST /upload`, before multipart parsing and R2 writes. It allows approximately **120 attempts per minute per client IP per Cloudflare location**. Clients behind the same IP share a bucket at that location, and requests without `CF-Connecting-IP` share a fallback bucket. Rejections return `429` with `Retry-After: 60`. The browser and CLI each start at most one upload every 550 ms per instance (about 109 per minute); separate tabs or processes do not coordinate. This is an abuse throttle, not a global quota or a billing cap. See [Workers Rate Limiting](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/).
+
+| Layer | Free allowance or limit | What it means for Catbox |
+| --- | --- | --- |
+| [Workers Free](https://developers.cloudflare.com/workers/platform/limits/#daily-requests) | 100,000 requests/day per account, resetting at 00:00 UTC | Upload attempts that reach the Worker use this budget even when rejected, including by Catbox's `429`. Home, API preflights and image requests also share it. Cloudflare's quota error is separate from Catbox's throttle. |
+| [Workers runtime](https://developers.cloudflare.com/workers/platform/limits/) | 10 ms CPU per HTTP request; 128 MB memory per isolate | The 10 MiB Catbox file cap is below the 100 MB incoming body limit for a Cloudflare Free zone. It does not guarantee CPU or memory headroom: Catbox parses multipart data, reads the file for format detection and hashes tokenized uploads for retries. Profile representative uploads before raising the cap. |
+| [R2 Standard storage](https://developers.cloudflare.com/r2/pricing/#free-tier) | 10 GB-month/month | Uploads accumulate; Catbox does not delete old objects. For a full month, about 9,500 retained 1 MiB images (or 950 at 10 MiB each) use nearly all the free storage allowance, even with no new requests. |
+| [R2 operations](https://developers.cloudflare.com/r2/pricing/#class-a-operations) | 1 million Class A and 10 million Class B operations/month; no egress charge | A typical new upload calls `PutObject` (Class A) once; collisions can cause additional calls and a retried upload can still call R2 even when it reuses a URL. An image lookup that reaches R2 calls `GetObject` (Class B), including lookups that find no object. |
+
+At an even rate over 30 days, 1 million Class A operations averages about **33,333/day**, before any other account usage. That is not a safe upload target: stored bytes can run out of free allowance much sooner. R2's allowances are monthly billing thresholds for Standard storage, not hard stops; usage above them can incur charges. [Workers Cache](https://developers.cloudflare.com/workers/cache/#pricing) hits avoid Worker execution and R2 reads, but still use the Workers request budget when Workers Cache is enabled, as it is in this repo.
+
+Keep the current throttle for normal bulk uploads and track daily Workers requests and monthly R2 storage and operations separately. If upload bursts threaten the request budget on a custom Cloudflare zone, consider a [WAF rate limiting rule](https://developers.cloudflare.com/waf/rate-limiting-rules/) for `POST /upload` to reject traffic before it reaches the Worker. WAF counters are also location-scoped; neither limiter replaces a strict global request or storage budget.
+
 ## CLI
 
 The `catbox` command uploads one image or a folder of images.
@@ -125,7 +140,7 @@ Successful API requests return **201 Created** with a JSON response:
 
 The service checks the file contents to identify its image format, regardless of the filename or browser-supplied MIME type. Uploads larger than 10 MiB are rejected.
 
-Uploads are limited to 120 per minute per client and Cloudflare location; excess requests receive **429 Too Many Requests** with a `Retry-After` header. The browser queue uploads one file per request with two requests in flight, and retries rate-limited or failed requests automatically. Non-multipart requests receive **415 Unsupported Media Type**, and malformed multipart bodies receive **400 Bad Request**.
+Upload attempts are subject to an approximate limit of 120 per minute per client IP and Cloudflare location; rejected attempts receive **429 Too Many Requests** with a `Retry-After` header. See [Rate limits and Cloudflare free-tier capacity](#rate-limits-and-cloudflare-free-tier-capacity) for the separate platform quotas. The browser queue uploads one file per request with two requests in flight, and retries rate-limited or failed requests automatically. Non-multipart requests receive **415 Unsupported Media Type**, and malformed multipart bodies receive **400 Bad Request**.
 
 ## Routes
 
