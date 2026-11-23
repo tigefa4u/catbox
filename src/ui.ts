@@ -74,10 +74,12 @@ export interface HomeOptions {
   origin: string;
   /** Whether the theme follows the system preference or an explicit choice. */
   themeMode: ThemeMode;
+  siteKey?: string;
+  uploadAvailable: boolean;
 }
 
 /** Render the upload page. */
-export function renderHome({ theme, origin, themeMode }: HomeOptions): string {
+export function renderHome({ theme, origin, themeMode, siteKey, uploadAvailable }: HomeOptions): string {
   const isDark = theme.id === 'dark' || theme.id === 'bootstrap';
   const toggleHref = isDark ? '/?theme=classic' : '/?theme=bootstrap';
   const pageUrl = `${origin}/`;
@@ -150,7 +152,7 @@ ${preconnect}${vendorStylesheets}${vendorStylesheets ? '\n' : ''}${initScript}
         <h1 class="cb-title">Upload images</h1>
         <p class="cb-subtitle">Up to ${escapeHtml(MAX_UPLOAD_LABEL)} per file. ${escapeHtml(SUPPORTED_FORMATS_LABEL)} are welcome. Select several at once to upload a whole batch.</p>
 
-        <form class="cb-upload-form" id="cb-upload-form" method="post" action="/upload" enctype="multipart/form-data" data-max-size="${MAX_UPLOAD_BYTES}" data-field-name="${escapeHtml(UPLOAD_FIELD_NAME)}">
+        <form class="cb-upload-form" id="cb-upload-form" method="post" action="/web/upload" enctype="multipart/form-data" data-max-size="${MAX_UPLOAD_BYTES}" data-field-name="${escapeHtml(UPLOAD_FIELD_NAME)}"${uploadAvailable ? '' : ' data-upload-unavailable'}>
           <label class="cb-dropzone" for="cb-file" data-dropzone>
             <svg class="cb-dropzone-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
               <path d="M12 16V4m0 0L8 8m4-4 4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -161,7 +163,11 @@ ${preconnect}${vendorStylesheets}${vendorStylesheets ? '\n' : ''}${initScript}
             <input class="cb-file-input" type="file" id="cb-file" name="${escapeHtml(UPLOAD_FIELD_NAME)}" accept="image/*" required>
           </label>
 
-          <button class="cb-btn cb-btn-primary" type="submit" id="cb-submit">
+          ${!uploadAvailable ? '<p role="status">Website verification is unavailable.</p>' : siteKey ? `<div id="cb-turnstile" data-site-key="${escapeHtml(siteKey)}" hidden></div>
+          <p id="cb-turnstile-status" role="status" hidden></p>
+          <noscript><p>Enable JavaScript to verify and upload on the website.</p></noscript>` : ''}
+
+          <button class="cb-btn cb-btn-primary" type="submit" id="cb-submit"${siteKey || !uploadAvailable ? ' disabled' : ''}>
             <svg class="cb-button-icon" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
               <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"/>
               <path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708z"/>

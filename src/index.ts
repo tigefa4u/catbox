@@ -19,6 +19,9 @@ import {
   type ThemeMode,
 } from './themes';
 import { renderHome, renderUploadResult } from './ui';
+import { TURNSTILE_ORIGIN, verifyTurnstile } from './turnstile';
+
+type Bindings = Env & { TURNSTILE_SITE_KEY?: string; TURNSTILE_SECRET_KEY?: string };
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -194,7 +197,7 @@ async function serveDefaultImage(c: Context<{ Bindings: Env }>): Promise<Respons
 // ---------------------------------------------------------------------------
 // App & Middleware
 // ---------------------------------------------------------------------------
-const app = new Hono<{ Bindings: Env }>();
+const app = new Hono<{ Bindings: Bindings }>();
 
 // Enable CORS for the upload endpoint (public API).
 app.use('/upload', cors());
@@ -226,10 +229,13 @@ app.get('/', (c) => {
   const cookieTheme = readThemeCookie(c.req.header('cookie'));
   const themeMode: ThemeMode = cookieTheme ? 'manual' : 'auto';
   const theme = getTheme(cookieTheme ?? AUTO_LIGHT_THEME);
+  const siteKey = c.env.TURNSTILE_SITE_KEY;
   const html = renderHome({
     theme,
     origin: new URL(c.req.url).origin,
     themeMode,
+    siteKey,
+    uploadAvailable: Boolean(siteKey) === Boolean(c.env.TURNSTILE_SECRET_KEY),
   });
 
   const headers: Record<string, string> = {
@@ -240,7 +246,8 @@ app.get('/', (c) => {
     'Content-Security-Policy': [
       "default-src 'self'",
       "style-src 'self' https://cdn.jsdelivr.net",
-      "script-src 'self'",
+      siteKey ? "script-src 'self' " + TURNSTILE_ORIGIN : "script-src 'self'",
+      ...(siteKey ? ['frame-src ' + TURNSTILE_ORIGIN] : []),
       "img-src 'self' data: blob:",
       "connect-src 'self'",
       "base-uri 'none'",
@@ -268,7 +275,7 @@ async function retryImageId(token: string, bytes: ArrayBuffer): Promise<string> 
   return Array.from(hash.subarray(0, 16), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
-app.post('/upload', async (c) => {
+async function upload(c: Context<{ Bindings: Bindings }>, website = false) {
   // Anonymous uploads are rate limited per client. The binding is
   // approximate and per Cloudflare location; a WAF rule can add a stricter
   // edge-wide limit if needed.
@@ -278,6 +285,23 @@ app.post('/upload', async (c) => {
     c.header('Retry-After', '60');
     console.warn(JSON.stringify({ message: 'upload rate limited' }));
     return c.json({ error: 'Too many uploads. Please try again shortly.' }, 429);
+  }
+
+  if (website) {
+    const { TURNSTILE_SITE_KEY: siteKey, TURNSTILE_SECRET_KEY: secret } = c.env;
+    if (Boolean(siteKey) !== Boolean(secret)) {
+      return c.json({ error: 'Website verification is unavailable.' }, 503);
+    }
+    if (secret) {
+      const result = await verifyTurnstile(secret, c.req.header('X-Catbox-Turnstile'),
+        c.req.header('cf-connecting-ip'));
+      if (result === 'unavailable') {
+        return c.json({ error: 'Website verification is temporarily unavailable.' }, 503);
+      }
+      if (result !== 'verified') {
+        return c.json({ error: 'Website verification failed. Select the image again to retry.' }, 403);
+      }
+    }
   }
 
   try {
@@ -401,7 +425,10 @@ app.post('/upload', async (c) => {
     );
     return c.json({ error: 'Internal server error.' }, 500);
   }
-});
+}
+
+app.post('/upload', (c) => upload(c));
+app.post('/web/upload', (c) => upload(c, true));
 
 // ---------------------------------------------------------------------------
 // Serve Endpoint: GET /:filename
