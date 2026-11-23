@@ -4,6 +4,11 @@
   'use strict';
 
   var form = document.getElementById('cb-upload-form');
+  var turnstileRoot = document.getElementById('cb-turnstile');
+  var turnstileStatus = document.getElementById('cb-turnstile-status');
+  var verificationQueue = Promise.resolve();
+  var lastVerifiedRequestAt = 0;
+  var uploadUnavailable = form && form.hasAttribute('data-upload-unavailable');
   var dropzone = document.querySelector('[data-dropzone]');
   var fileInput = document.getElementById('cb-file');
   var submitButton = document.getElementById('cb-submit');
@@ -424,7 +429,7 @@
     var failed = countByStatus('error');
 
     if (submitButton) {
-      submitButton.disabled = running || pending === 0;
+      submitButton.disabled = uploadUnavailable || running || pending === 0;
       if (submitLabel) {
         submitLabel.textContent = running
           ? 'Uploading…'
@@ -644,7 +649,7 @@
   /* -------------------------------------------------------------- uploads */
 
   function startUploads() {
-    if (running) return;
+    if (running || uploadUnavailable) return;
 
     if (countByStatus('pending') === 0) {
       showError('Choose at least one image to upload.', 'Nothing to upload');
@@ -805,10 +810,104 @@
   }
 
   function sendItem(item) {
+    if (!turnstileRoot) {
+      sendRequest(item);
+      return;
+    }
+
+    // A single widget slot serves the queue. Uploads can still run in parallel,
+    // but every attempt (including retries) needs a freshly verified token.
+    verificationQueue = verificationQueue.then(async function () {
+      await waitForVerifiedRequestSlot();
+      var responseToken = await requestVerification();
+      // An in-flight upload may have extended the backoff during verification.
+      await waitForVerifiedRequestSlot();
+      lastVerifiedRequestAt = Date.now();
+      sendRequest(item, responseToken);
+    }).catch(function () {
+      failItem(item, 'Verification did not complete. Select the image again to retry.');
+    });
+  }
+
+  async function waitForVerifiedRequestSlot() {
+    var delay = Math.max(pausedUntil, lastVerifiedRequestAt + MIN_START_INTERVAL_MS) - Date.now();
+    while (delay > 0) {
+      await new Promise(function (resolve) { window.setTimeout(resolve, delay); });
+      delay = Math.max(pausedUntil, lastVerifiedRequestAt + MIN_START_INTERVAL_MS) - Date.now();
+    }
+  }
+
+  function loadTurnstile() {
+    if (window.turnstile) return Promise.resolve(window.turnstile);
+    return new Promise(function (resolve, reject) {
+      var script = document.createElement('script');
+      var timer = window.setTimeout(fail, 10000);
+      function fail() {
+        window.clearTimeout(timer);
+        script.remove();
+        reject(new Error('Could not load Turnstile'));
+      }
+      script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+      script.onerror = fail;
+      script.onload = function () {
+        if (!window.turnstile) return fail();
+        window.clearTimeout(timer);
+        resolve(window.turnstile);
+      };
+      document.head.appendChild(script);
+    });
+  }
+
+  async function requestVerification() {
+    turnstileStatus.textContent = 'Verifying upload…';
+    turnstileStatus.hidden = false;
+    try {
+      var api = await loadTurnstile();
+      turnstileRoot.hidden = false;
+      var widget;
+      try {
+        return await new Promise(function (resolve, reject) {
+          var timer = window.setTimeout(fail, 120000);
+          function fail() {
+            window.clearTimeout(timer);
+            reject(new Error('Turnstile verification did not complete'));
+          }
+          try {
+            widget = api.render(turnstileRoot, {
+              sitekey: turnstileRoot.dataset.siteKey,
+              appearance: 'interaction-only',
+              size: 'flexible',
+              retry: 'never',
+              'response-field': false,
+              callback: function (value) {
+                window.clearTimeout(timer);
+                resolve(value);
+              },
+              'error-callback': fail,
+              'timeout-callback': fail,
+              'expired-callback': fail,
+              'unsupported-callback': fail,
+            });
+          } catch (err) {
+            window.clearTimeout(timer);
+            reject(err);
+          }
+        });
+      } finally {
+        if (widget != null) api.remove(widget);
+      }
+    } finally {
+      turnstileRoot.hidden = true;
+      turnstileStatus.hidden = true;
+    }
+  }
+
+  function sendRequest(item, responseToken) {
     var xhr = new XMLHttpRequest();
     item.xhr = xhr;
-    xhr.open('POST', '/upload');
+    xhr.open('POST', form.action);
     xhr.setRequestHeader('Accept', 'application/json');
+    if (responseToken) xhr.setRequestHeader('X-Catbox-Turnstile', responseToken);
     // A retry must use the same token even if the Worker saved the first attempt.
     // Keep plain HTTP previews working when randomUUID is unavailable.
     if (!item.uploadToken && window.crypto && window.crypto.randomUUID) {

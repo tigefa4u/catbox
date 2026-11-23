@@ -34,6 +34,21 @@ npm run dev
 
 Open [http://localhost:8787](http://localhost:8787). Wrangler provides a local R2 implementation for development using the `IMAGES` binding configured in `wrangler.jsonc`.
 
+### Website Turnstile
+
+Turnstile protects the website form at `POST /web/upload`. The Worker verifies a fresh token for each upload attempt before parsing the file or writing to R2. The public `POST /upload` API and CLI intentionally do not require Turnstile; this is not an account-wide anti-abuse control. Both upload paths still use the existing rate limiter.
+
+To enable Turnstile in production, create a **Managed** widget restricted to the Catbox website hostname. Set the public `TURNSTILE_SITE_KEY` as a Worker variable and store `TURNSTILE_SECRET_KEY` as a Worker secret (for Wrangler-managed deployments, use `wrangler secret put TURNSTILE_SECRET_KEY`). With neither key, website uploads work without verification. With only one key, the website refuses uploads rather than silently skipping the check. With Turnstile enabled, website uploads require JavaScript.
+
+For local testing only, put [Cloudflare's dummy keys](https://developers.cloudflare.com/turnstile/troubleshooting/testing/) in the ignored `.dev.vars` file and restart Wrangler:
+
+```dotenv
+TURNSTILE_SITE_KEY=1x00000000000000000000AA
+TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
+```
+
+Upload a batch to check success. Keep the passing sitekey and switch the test secret to the always-fail or already-spent value from Cloudflare's testing guide to check rejection. The CLI and `POST /upload` should still work without a challenge. Never deploy dummy keys.
+
 ## Pre-commit checks
 
 Install [pre-commit](https://pre-commit.com/#install) and run these commands from the repository root:
@@ -133,6 +148,7 @@ Uploads are limited to 120 per minute per client and Cloudflare location; excess
 | --- | --- | --- |
 | `GET` | `/` | Image upload interface. Use `?theme=classic`, `?theme=dark`, or `?theme=bootstrap` to select a theme, or `?theme=auto` to follow the browser preference. |
 | `POST` | `/upload` | Upload an image as multipart form data. |
+| `POST` | `/web/upload` | Website form upload; requires Turnstile when configured. |
 | `GET` | `/:filename` | Retrieve an uploaded image, or the Catbox logo when the key is missing. |
 
 ## Default image
